@@ -11,8 +11,9 @@
 
 **Speedy Structured C++17 logging library**
 
-To achieve 30 million logs per second, string information is pre-processed at compile-time. At run-time, only arguments are stored. <br>
-Furthermore, compact storage is obtained by writing duplicate string only once, coupled with generalized delta-encoding.
+To achieve 30 million logs per second, string information is pre-processed at compile-time so that practically only arguments are stored at run-time.
+
+Furthermore, compact storage is obtained by writing duplicate strings only once, in binary form and with generalized delta-encoding.
 
 Costly formatting is deferred to logs exploitation phase, enabling dynamic filtering, queries and transforms: <br>
 Logs act as a tiny database.
@@ -100,7 +101,6 @@ Highlights:
  - Compilation time cost per unit is around 0.7 s
    - This cost is due in part to the internal usage of standard libraries (chrono, threads, etc...) <br>
      It is amortized if standard libraries are required also in the including file.
-   - Compilation time cost per log is ~1.5 µs due to the compile-time work to speed-up runtime
 
 <details>
 <summary>Benchmark setup</summary>

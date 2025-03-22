@@ -64,11 +64,6 @@ jobs:
           call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
           nmake install
 
-    - uses: actions/upload-artifact@v4
-      with:
-        name: binaries
-        path: build/bin/*.exe
-
     - name: Run tests
       shell: cmd
       run: |
@@ -167,10 +162,30 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
-        name: reader wheels
-        path: |
-          build38/python/dist/*
-          build39/python/dist/*
-          build310/python/dist/*
-          build311/python/dist/*
-          build312/python/dist/*
+        name: Python 3.8 sslogread wheel
+        path: build38/python/dist/*
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: Python 3.9 sslogread wheel
+        path: build39/python/dist/*
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: Python 3.10 sslogread wheel
+        path: build310/python/dist/*
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: Python 3.11 sslogread wheel
+        path: build311/python/dist/*
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: Python 3.12 sslogread wheel
+        path: build312/python/dist/*
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: Python sslogread source
+        path: build312/python/dist/*.gz
