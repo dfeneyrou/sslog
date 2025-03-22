@@ -1,0 +1,174 @@
+                   <meta charset="utf-8" emacsmode="-*- markdown -*-">
+                   <link rel="Shortcut Icon" href="images/sslog.ico" type="image/x-icon" />
+                  **sslog: Speedy Structured C++17 logging library**
+                  <a href="https://github.com/dfeneyrou/sslog">Go to code</a>
+
+<h1> @@ <a href="index.html">Overview</a> </h1>
+<h1> @@ <a href="configuration_reference_api.md.html">Logging configuration</a> </h1>
+<h1> @@ <a href="logging_reference_api.md.html">Logging reference API</a> </h1>
+<h1> @@ <a href="sslogread_python_module.md.html">sslogread Python module</a> </h1>
+<h1> @@ <a href="sslogread_cpp_api.md.html">sslogread C++ API</a> </h1>
+<h1> @@ <a href="#">sscat</a> </h1>
+
+## The ssCat tool
+
+`sscat` is fundamentally similar to the Linux `cat` or Windows `type` command: display on screen a log file. <br>
+But it also leverages the structure of the logs and offers filtering on any fields and transforming operations.
+
+It is also fast, filtering-out ~50 millions log/s (display not included).
+
+### Usage
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ none
+Usage:
+     ./build/bin/sscat [options] &lt;sslog dir&gt;
+
+&lt;sslog dir&gt; : log directory
+
+Definitions:
+ <level>   possible values are trace, debug, info, warn, error, critical
+ <pattern> is a search string, potentially containing wildcard. Ex: "*home*log*"
+
+Options:
+ -v           : verbose output (debug)
+ -h           : this help
+
+Filtering options:
+ default       : no filtering
+ -lmin <level> : filter-in  this level and above
+ -lmax <level> : filter-out levels strictly above
+ -bmin         : filter-in  logs with binary buffers at least this size
+ -bmax         : filter-out logs with binary buffers strictly above this size
+ -c <pattern>  : filter-in  categories that matches
+ -nc <pattern> : filter-out categories that matches
+ -t <pattern>  : filter-in  threads that matches
+ -nt <pattern> : filter-out threads that matches
+ -f <pattern>  : filter-in  format strings that matches. CAUTION: arguments are not considered
+ -nf <pattern> : filter-out format strings that matches
+ -a "<name><op><value>": filter-in argument based on the value given as a string.
+                         <op> is between '=', '==', '>', '>=', '<', '<='
+                         May be multiple occurences
+                         Caution: equality and floats may have precision issues
+                         Caution: no pattern matching on names and values
+ -o            : end a serie of 'AND' filters and start a new one (OR)
+
+Output options:
+ default      : colored text formatted logs
+ -m           : monochrome text formatted logs
+ -j           : JSON output
+ -u           : use UTC time instead of local time
+ -p <format>  : formatter configuration of log display. Default "[%L] [%Y-%m-%dT%H:%M:%S.%f%z] [%c] [thread %t] %v%Q"
+ -q <format>  : formatter configuration of JSON date. Default "%G"
+
+Formatting catalog:
+    %t  Thread id
+    %v  The actual text to log
+    %c  Category
+    %L  The log level of the message
+    %l  Short log level of the message
+    %a  Abbreviated weekday name
+    %A  Full weekday name
+    %b  Abbreviated month name
+    %B  Full month name
+    %y  Year in 2 digits
+    %Y  Year in 4 digits
+    %m  Month
+    %d  Day of month
+    %p  AM/PM   "AM"
+    %z  ISO 8601 offset from UTC in timezone
+    %H  Hours in 24 format
+    %h  Hours in 12 format
+    %M  Minutes
+    %S  Seconds
+    %e  Millisecond part of the current second
+    %f  Microsecond part of the current second
+    %g  Nanosecond  part of the current second
+    %E  Milliseconds since epoch
+    %F  Microseconds since epoch
+    %G  Nanoseconds  since epoch
+    %Q     end of line and multiline binary buffer dump
+    %q     ' (+ buffer of size N)' or nothing if empty
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### Examples
+
+Display all the logs (no filtering) in text:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ shell
+sscat &lt;log dir&gt;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Keep only the logs with a binary buffer and on a category matching `*engine*`:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ shell
+sscat &lt;log dir&gt; -bmin 1 -c "*engine*"
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Select the logs on a category matching `*engine*` but not on a thread matching `worker*`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ shell
+sscat &lt;log dir&gt; -nt "worker*" -c "*engine*"
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Select the logs which possess an argument named `id` and another named `user`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ shell
+: Note: argument filtering option may be used multiple times
+sscat &lt;log dir&gt; -a "id" -a "user"
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+!!! warning
+    The argument name shall be exact, no pattern matching for argument's names and values
+
+Select the logs which possess an argument named `user` which has a value `github_agent`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ shell
+: Note: '=' or '==' are identical
+sscat &lt;log dir&gt; -a "user==github_agent"
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Select the logs on category `transaction` and which possess an argument named `id` which has a value higher than 356 and lower or equal to 1000
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ shell
+sscat &lt;log dir&gt; -c "transaction" -a "id>356" -a "id<=1000"
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Select the logs with level >= error, with category name containing 'car', which contain both an argument named 'color' and one named 'wheels' with value >= 4
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Python
+sscat &lt;log dir&gt; -lmin error -c "*car*" -a color -a "wheels>=4"
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Select the logs on category `transaction` and which possess an argument named `id` which has a value higher than 356 and lower or equal to 1000 <br>
+OR the logs with level >= error, with category name containing 'car', which contain both an argument named 'color' and one named 'wheels' with value >= 4
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ shell
+sscat &lt;log dir&gt; -c "transaction" -a "id>356" -a "id<=1000"   -o   -lmin error -c "*car*" -a color -a "wheels>=4"
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### Formatters
+
+The log output is fully flexible and is configured via a string called "format specifier". <br>
+It looks like a `printf` format string with a different set of percent specifiers, and replaces them with the associated log information.
+
+For instance, a date could be formatted as `Today, %A, is %Y-%m-%d" which gives at a point in time
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Today, Saturday, is 2025-03-15
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The default format specifier is: `[%L] [%Y-%m-%dT%H:%M:%S.%f%z] [%c] [thread %t] %v%Q`
+
+The list of available specifiers is described in the [logger configuration page](configuration_reference_api.md.html#formatspecifiers)
+
+
+### JSON output
+
+Exporting the log for external processing can be done via the `JSON` format which is textual, simple and widely spread.
+
+The switch to `JSON` output is the option `-j`:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ shell
+sscat &lt;log dir&gt; -j
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The `JSON` date format is configured with the `-q` option. <br>
+Ex:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ shell
+sscat &lt;log dir&gt; -j -q "%Y-%m-%dT%H:%M:%S.%f%z"
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Further data manipulation can now be performed externally, for instance with the tool [jq](https://jqlang.org/).
+
+<script>markdeepOptions = {tocStyle:'long', definitionStyle:'long'};</script>
+<link rel="stylesheet" href="sslog.css">
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

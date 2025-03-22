@@ -1,0 +1,651 @@
+                   <meta charset="utf-8" emacsmode="-*- markdown -*-">
+                   <link rel="Shortcut Icon" href="images/sslog.ico" type="image/x-icon" />
+                  **sslog: Speedy Structured C++17 logging library**
+                  <a href="https://github.com/dfeneyrou/sslog">Go to code</a>
+
+<h1> @@ <a href="index.html">Overview</a> </h1>
+<h1> @@ <a href="configuration_reference_api.md.html">Logging configuration</a> </h1>
+<h1> @@ <a href="logging_reference_api.md.html">Logging reference API</a> </h1>
+<h1> @@ <a href="sslogread_python_module.md.html">sslogread Python module</a> </h1>
+<h1> @@ <a href="#">sslogread C++ API</a> </h1>
+
+This chapter presents the `sslogread` library C++ API.
+
+The core object of the library is the `LogSession` object. It represents the content of the log folder. <br>
+Its methods offers services to manipulate the logs.
+
+Errors are handled by returning an error flag and an error message (no exceptions).
+
+Strings are a base component of logs and are usually highly redundant (format string, thread name, category, ...). <br>
+In this sense they are particular, as in `sslog` they are stored uniquely once and indexed, which brings many benefits. <br> 
+Logs refers to them just by their index, and can be quickly grouped. <br>
+The `LogSession` API reflect this characteristic.
+
+## Installation
+
+WIP
+
+## LogSession constructor and init
+
+
+| Methods                                                      | Description                                  |
+|--------------------------------------------------------------|----------------------------------------------|
+| [LogSession::query](#logsessionquery)                        | Main service to retrieve filtered logs       |
+| [LogSession::getIndexedStringQty](logsessiongetstringqty)           | Returns the quantity of logged strings       |
+| [LogSession::getString](logsessiongetstring)                 | Returns the string corresponding to an index |
+| [LogSession::getIndexedStringArgNameAndUnit](logsessiongetargnameandunit) | Returns a list of argument name and unit for a given string index |
+|                                                              |                                              |
+
+
+##### Declaration
+
+The constructor creates an empty object.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+LogSession::LogSession();
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The association with a log folder is done through the `init` method:
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+bool LogSession::init(const std::filesystem::path& logDirPath, std::string& errorMessage);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+| Parameter name | Type                    | Direction | Description                             |
+|----------------|-------------------------|-----------|-----------------------------------------|
+| `logDirPath`   | `std::filesystem::path` | Input     | The path of the log folder to represent |
+| `errorMessage` | `std::string&`          | Output    | The error message, if necessary         |
+
+Returned value:
+ - `true` if the initialization is successful
+ - `false` if the initialization failed, the error message is applicable.
+
+The LogSession object can be re-initialized for another folder.
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+std::string errorMessage;
+
+sslogread::LogSession session;
+if(!session.init("/path/to/my/log/folder", errorMessage)) {
+    fprintf(stderr, "Error: %s\n", errorMessage.c_str());
+}
+
+// Continue with the session object
+// ...
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## LogSession::query
+
+This method implement the main service to query the logs through its filter rules. <br>
+The selected logs are provided one by one via a callback.
+
+An essential component of the filters is the "string pattern", a greedy pattern matching with text and wildcard.
+Ex: `"/home/user/*"`, `"*/user/omer"`, `"*user*"`
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+bool LogSession:: query(const std::vector<Rule>& rules, const std::function&lt;void(const LogStruct&)&gt;& callback, std::string& errorMessage) const;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+| Parameter name | Type                                                | Direction | Description                               |
+|----------------|-----------------------------------------------------|-----------|-------------------------------------------|
+| `rules`        | `const std::vector<Rule>&`                          | Input     | The array of rules for filtering          |
+| `callback`     | `const std::function&lt;void(const LogStruct&)&gt;` | Input     | The callback which provide each selected log |
+| `errorMessage` | `std::string&`                                      | Output    | The error message, if necessary           |
+
+Returned value:
+ - `true` if the query is successful
+ - `false` if the query failed, the error message is applicable.
+
+The input `Rule` structure is defined as:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+// Logic AND among all the criteria
+struct Rule {
+    sslog::Level levelMin = sslog::Level::trace;
+    sslog::Level levelMax = sslog::Level::off;
+    std::string  category;
+    std::string  thread;
+    std::string  format;
+    std::vector<std::string> arguments;
+    uint32_t     bufferSizeMin = 0;
+    uint32_t     bufferSizeMax = 0xFFFFFFFF;
+
+    std::string  noCategory;
+    std::string  noThread;
+    std::string  noFormat;
+};
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+| Parameter name      | Type                       | Description                                                            | Default (accept all) |
+|---------------------|----------------------------|------------------------------------------------------------------------|----------------------|
+| `levelMin`          | `sslog::Level`             | The minimum log level                                                  | sslog::Level::trace  |
+| `levelMax`          | `sslog::Level`             | The maximum log level (`off` is above all)                             | sslog::Level::off    |
+| `category`          | `std::string`              | Filtering-in pattern on category                                       | empty                |
+| `thread`            | `std::string`              | Filtering-in pattern on thread name                                    | empty                |
+| `format`            | `std::string`              | Filtering-in pattern on format string                                  | empty                |
+| `bufferSizeMin`     | `uint32_t`                 | Filtering-in if binary buffer length is equal or above                 | 0                    |
+| `bufferSizeMax`     | `uint32_t`                 | Filtering-in if buffer length is equal or below                        | `maximum size (4GB)` |
+| `arguments`         | `std::vector<std::string>` | Filtering-in on arguments names and value <br> (!) No pattern matching | empty                |
+| `noCategory`        | `std::string`              | Filtering-out pattern on category                                      | empty                |
+| `noThread`          | `std::string`              | Filtering-out pattern on thread name                                   | empty                |
+| `noFormat`          | `std::string`              | Filtering-out pattern on format string                                 | empty                |
+
+!!! tip
+    Important points about filtering on arguments:
+     - It works only with named arguments
+     - It is not pattern based. Names and values must be exact
+     - The syntax is: `<name><operator><value>` with `<operator>` among `=`, `==`, `>`, `>=`, `<`, `<=`
+     - The `<operator><value>` can be ommitted to filter on the existence of a named argument
+     - Ex: "user==georges", "id=315", "weight<=50.0", "weight"
+
+The output `LogStruct` structure is defined as:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+struct LogStruct {
+    sslog::Level         level;
+    uint64_t             timestampUtcNs;
+    uint32_t             categoryIdx;
+    uint32_t             threadIdx;
+    uint32_t             formatIdx;
+    std::vector<Arg>     args;
+    std::vector<uint8_t> buffer;
+};
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+| Parameter name | Type                   | Description                                 |
+|----------------|------------------------|---------------------------------------------|
+| `level`        | `sslog::Level`         | Log level                                   |
+| `timestampUtcNs`  | `uint64_t`             | Log timestamp in nanosecond since UTC epoch |
+| `categoryIdx`  | `uint32_t`             | Log category string index                   |
+| `threadIdx`    | `uint32_t`             | Log thread name string index                |
+| `formatIdx`    | `uint32_t`             | Log format string index                     |
+| `args`         | `std::vector<Arg>`     | Log list of argument (typed) values         |
+| `buffer`       | `std::vector<uint8_t>` | Log binary buffer content                   |
+
+
+with the `Arg` sub-structure representing the value of an argument, defined as a standard typed union of values.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+enum class ArgType { S32 = 0, U32, S64, U64, Float, Double, StringIdx };
+
+struct Arg {
+    enum ArgType pType;
+    union {
+        int32_t  vS32;
+        uint32_t vU32;
+        int64_t  vS64;
+        uint64_t vU64;
+        float    vFloat;
+        double   vDouble;
+        uint32_t vStringIdx;
+    };
+};
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+!!!
+    In the LogStruct representation, strings are not represented directly, but through their `index`. <br>
+    Retrieving the corresponding string is simply done through the `LogSession::getIndexedString(uint32_t index)` method.
+
+##### Examples
+
+Display all the logs (no filtering) in text:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+std::string errorMessage;
+
+if(!session->query({}, [session](const sslogread::LogStruct& log) {
+
+                 // Format the string with arguments (=custom vsnprintf with our argument list, see below)
+                 char filledFormat[1024];
+                 sslogread::vsnprintf(filledFormat, sizeof(filledFormat), session->getIndexedString(log.formatIdx), log.args, session);
+
+                 // Some display on console
+                 printf("[timestampUtcNs=%lu  thread=%s  category=%s  buffer=%s] %s\n",
+                     log.timestampUtcNs, session->getIndexedString(log.threadIdx), session->getIndexedString(log.categoryIdx),
+                     log.buffer.empty()? "No" : "Yes", filledFormat);
+
+             },
+             errorMessage)
+{
+    fprinf(stderr, "Error: %s\n", errorMessage.c_str());
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Keep only the logs with a binary buffer and on a category matching `*engine*`:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+Rule rule;
+rule.category = "*engine*";
+rule.bufferSizeMin = 1;
+
+std::string errorMessage;
+if(!session.query({rule}, [](const sslogread::LogStruct& log) { /* ... */ }, errorMessage)
+{
+    fprinf(stderr, "Error: %s\n", errorMessage.c_str());
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Select the logs on a category matching `*engine*` but not on a thread matching `worker*`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+Rule rule;
+rule.category = "*engine*";
+rule.noThread = "worker*";
+
+/* ... */
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Select the logs which possess an argument named `id` and another named `user`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+Rule rule;
+rule.arguments.push_back("id");
+rule.arguments.push_back("user");
+
+/* ... */
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+!!! warning
+    The argument name shall be exact, no pattern matching for argument's names and values
+
+Select the logs which possess an argument named `user` which has a value `github_agent`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+Rule rule;
+rule.arguments.push_back("user==github_agent"); // Note: '=' or '==' are identical
+
+/* ... */
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Select the logs on category `transaction` and which possess an argument named `id` which has a value higher than 356 and lower or equal to 1000
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+Rule rule;
+rule.category = "transaction";
+rule.arguments.push_back("id>356");   // Note: comparison works also with strings (alphanumerically)
+rule.arguments.push_back("id<=1000");
+
+/* ... */
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Select the logs with level >= error, with category name containing 'car', which contain both an argument named 'color' and one named 'wheels' with value >= 4
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+Rule rule;
+rule.levelMin = sslog::Level::error;
+rule.category = "*car*";
+rule.arguments.push_back("color");
+rule.arguments.push_back("wheels>=4");
+
+/* ... */
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Select the logs on category `transaction` and which possess an argument named `id` which has a value higher than 356 and lower or equal to 1000 <br>
+OR the logs with level >= error, with category name containing 'car', which contain both an argument named 'color' and one named 'wheels' with value >= 4
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+Rule rule1;
+rule1.category = "transaction";
+rule1.arguments.push_back("id>356");   // Note: comparison works also with strings (alphanumerically)
+rule1.arguments.push_back("id<=1000");
+
+Rule rule2;
+rule2.levelMin = sslog::Level::error;
+rule2.category = "*car*";
+rule2.arguments.push_back("color");
+rule2.arguments.push_back("wheels>=4");
+
+std::string errorMessage;
+if(!session.query({rule1, rule2}, [](const sslogread::LogStruct& log) { /* ... */ }, errorMessage)
+{
+    fprinf(stderr, "Error: %s\n", errorMessage.c_str());
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## String manipulation
+
+### LogSession::getIndexedStringQty
+
+This method returns the quantity of unique string encountered in the logs.
+
+Note: they do not include the name and unit of the arguments (which are part of the format string)
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+size_t LogSession::getIndexedStringQty() const;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+size_t stringQty = session.getIndexedStringQty();
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### LogSession::getIndexedString
+
+This method returns the quantity of unique string encountered in the logs.
+
+Note: they do not include the name and unit of the arguments (which are part of the format string)
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+const char* LogSession::getIndexedString(uint32_t index) const;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+printf("%s \n", session.getIndexedString(14));
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### LogSession::getIndexedStringArgNameAndUnit
+
+This method returns the ordered list of argument name and unit for a given string index.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+struct ArgNameAndUnit {
+    std::string name;
+    std::string unit;
+};
+
+const std::vector&lt;ArgNameAndUnit&gt;& LogSession::getIndexedStringArgNameAndUnit(uint32_t stringIndex) const
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+| Parameter name | Type          | Description                                 |
+|----------------|---------------|---------------------------------------------|
+| `name`         | `std::string` | Name of the argument. Empty if not provided |
+| `unit`         | `std::string` | Unit of the argument. Empty if not provided |
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+std::vector&lt;ArgNameAndUnit&gt; args = session.getIndexedStringArgNameAndUnit(10);
+
+// Let's say that the string #10 is: "The user made a transaction id=%d and with cost=%5.3f_euro at time %d"
+// args is then:                                              { {"id", ""},    {"cost", "euro"},       {"", ""} }
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### LogSession::getIndexedStringFlags
+
+This method returns flags for an indexed string representing the kind of usage of the string in logs. <br>
+Depending on the content, a string may be used in different components.
+
+!!!
+    This information requires a internal full log parsing
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+uint8_t LogSession::getIndexedStringFlags(uint32_t index) const;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+for (size_t i = 0; i < session.getIndexedStringQty(); ++i) {
+    uint8_t flag = session.getIndexedStringFlags(i);
+
+    printf("String %03ld: [%s%s%s%s]  %s\n", i,
+             (flag & sslogread::FlagCategory) ? "C" : " ",
+             (flag & sslogread::FlagThread  ) ? "T" : " ",
+             (flag & sslogread::FlagFormat  ) ? "F" : " ",
+             (flag & sslogread::FlagArgValue) ? "A" : " ",
+             session.getIndexedString(i));
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### LogSession::getStringIndexes
+
+This method returns a list of string indexes matching both a content pattern and a selection of string flags. <br>
+It is basically a query on strings.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+std::vector<uint32_t> getStringIndexes(const std::string& pattern, uint8_t stringFlagsMask = 0) const;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+// Get strings used as a category, matching the pattern "/scheduler/*/worker"
+std::vector<uint32_t> stringIndexes = getStringIndexes("/scheduler/*/worker", sslogread::FlagCategory);
+
+// Get all thread name strings
+stringIndexes = getStringIndexes("", sslogread::FlagThread);
+
+// Get all format strings or argument value strings, containing the word "User"
+stringIndexes = getStringIndexes("*User*", sslogread::FlagFormat | sslogread::FlagArgValue);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### LogSession::getArgNameStrings
+
+This method returns the full list of unique string argument names. <br>
+They are not directly parts of the indexed strings but extracted from format strings, hence the output as strings.
+A typical usage of this API is checking the naming consistency in a project.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+std::vector<std::string> getArgNameStrings() const;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+std::vector<std::string> allArgumentNames = getArgNameStrings();
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### LogSession::getArgUnitStrings
+
+This method returns the full list of unique string argument units. <br>
+They are not directly parts of the indexed strings but extracted from format strings, hence the output as strings.
+A typical usage of this API is checking the unit consistency in a project.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+std::vector<std::string> getArgUnitStrings() const;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+std::vector<std::string> allArgumentUnits = getArgUnitStrings();
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## Misc
+
+### LogSession::getUtcSystemClockOriginNs
+
+This method returns the UTC system clock in nanosecond of the start of the logs.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+uint64_t getUtcSystemClockOriginNs() const;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+time_t timestamp = session.getUtcSystemClockOriginNs() / 1000000000;  // UTC time since epoch in seconds
+tm*    timeinfo  = localtime(&timestamp);
+printf("Current local time and date: %s", asctime(timeinfo));
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### LogSession::getClockResolutionNs
+
+This method returns the resolution of the logging clock in nanoseconds (purely informative).
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+double getClockResolutionNs() const;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+printf("Logging timestamp precision: %f ns", session.getClockResolutionNs());
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### LogSession::getLevelName
+
+This static method returns the text name of a level.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+static const char* LogSession::getLevelName(sslog::Level level);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+for(int level=0; level<7; ++level) {
+    printf("Level %d = %s\n", level, LogSession::getLevelName(sslog::Level(l)));
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## Helpers
+
+Some helpers are available for formatting logs.
+
+### Custom vsnprintf
+
+This function is an adapted version of the standard C function to `sslog` list of arguments.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+#include "sslogread/utils.h"
+int vsnprintf(char* buf, int count, char const* fmt, const std::vector<Arg>& va, const LogSession* session);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+| Parameter name | Type                      | Description                                                        |
+|----------------|---------------------------|--------------------------------------------------------------------|
+| `buf`          | `char*`                   | Output char buffer containing the resulting string                 |
+| `count`        | `int`                     | Maximum size of the output char buffer                             |
+| `fmt`          | `char const*`             | Format string                                                      |
+| `va`           | `const std::vector<Arg>&` | `sslog` list of arguments                                          |
+| `session`      | `const LogSession*`       | Session object (to provide real strings from string value indexes) |
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+std::string errorMessage;
+
+if(!session->query({}, [session](const sslogread::LogStruct& log) {
+                 // Format the string with arguments
+                 char logContent[1024];
+                 sslogread::vsnprintf(logContent, sizeof(logContent), session->getIndexedString(log.formatIdx), log.args, session);
+
+                 // Some display on console
+                 printf("[timestampUtcNs=%lu  thread=%s  category=%s  buffer=%s] %s\n",
+                     log.timestampUtcNs, session->getIndexedString(log.threadIdx), session->getIndexedString(log.categoryIdx),
+                     log.buffer.empty()? "No" : "Yes", buffer);
+             },
+             errorMessage)
+{
+    fprinf(stderr, "Error: %s\n", errorMessage.c_str());
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### TextFormatter
+
+This class creates text from the information of a log based on [format specifiers](configuration_reference_api.md.html#formatspecifiers).
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+#include "sslog.h"
+
+namespace sslog::priv
+{
+
+class TextFormatter
+{
+   public:
+    void init(const char* formatterPattern, bool withUtcTime, bool withColor);
+
+    void format(char* outBuf, uint32_t outBufSize, clockNs_t logTimestampUtcNs, uint32_t level, const char* threadName, const char* category,
+                const char* logContent, bool addEndOfLine);
+}
+
+} / End of namespace sslog::priv
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For the `init` method, the parameters are:
+| Parameter name     | Type          | Description                      |
+|--------------------|---------------|----------------------------------|
+| `formatterPattern` | `const char*` | Formatter pattern to apply       |
+| `withUtcTime`      | `bool`        | Select UTC or local time display |
+| `withColor`        | `bool`        | Enables terminal colors          |
+
+For the `format` method, the parameters are:
+| Parameter name      | Type          | Description                                                  |
+|---------------------|---------------|--------------------------------------------------------------|
+| `outBuf`            | `char*`       | Output char buffer containing the resulting string           |
+| `outBufSize`        | `uint32_t`    | Maximum size of the output char buffer                       |
+| `logTimestampUtcNs` | `clockNs_t`   | Log timestamp in nanoseconds since epoch UTC                 |
+| `level`             | `uint32_t`    | Log level                                                    |
+| `threadName`        | `const char*` | Log thread name                                              |
+| `category`          | `const char*` | Log category                                                 |
+| `logContent`        | `const char*` | Log filled format string (see [vsnprintf](#customvsnprintf)) |
+| `addEndOfLine`      | `bool`        | If `true`, adds an endline (`\n` or `\r\n`)                  |
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+std::string errorMessage;
+sslog::priv::TextFormatter tf;
+tf.init("[%L] [%Y-%m-%dT%H:%M:%S.%f%z] [%c] [thread %t] %v%Q", false, true); // Localtime and colors
+
+if(!session->query({}, [session, &tf](const sslogread::LogStruct& log) {
+                 // Fill the format string
+                 char logContent[1024];
+                 sslogread::vsnprintf(logContent, sizeof(logContent), session->getIndexedString(log.formatIdx), log.args, session);
+
+                 // Format the string with the different log components
+                 char logBuffer[1024];
+                 tf.format(logBuffer, sizeof(logBuffer), log.timestampUtcNs, (int)log.level, session->getIndexedString(log.threadIdx),
+                           session->getIndexedString(log.categoryIdx), logContent, false);
+
+                 printf("%s\n", logBuffer);
+             },
+             errorMessage)
+{
+    fprinf(stderr, "Error: %s\n", errorMessage.c_str());
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### base64Encode
+
+This functions encodes a binary buffer in base64.
+
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+#include "sslogread/utils.h"
+
+void base64Encode(const std::vector<uint8_t>& bufIn, std::vector<char>& bufOut);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+| Parameter name | Type                           | Description           |
+|----------------|--------------------------------|-----------------------|
+| `bufIn`        | `const std::vector<uint8_t>&*` | Input binary buffer   |
+| `bufOut`       | `std::vector<char>&*`          | Output buffer of char |
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+std::vector<char> base64Output;
+
+sslogread::base64Encode(log.buffer, base64Output);
+printf("The encoded buffer is: %s`n", base64Output.data());
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+<h1> @@ <a href="sscat.md.html">sscat</a> </h1>
+
+<script>markdeepOptions = {tocStyle:'long', definitionStyle:'long'};</script>
+<link rel="stylesheet" href="sslog.css">
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

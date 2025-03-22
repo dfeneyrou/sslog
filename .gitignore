@@ -1,0 +1,12 @@
+﻿build/*
+TODO
+__pycache__
+TAGS
+
+# Visual Studio CMake
+/.vs/*
+/out/*
+
+python/build
+python/dist
+python/sslog.egg-info

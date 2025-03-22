@@ -1,0 +1,396 @@
+                   <meta charset="utf-8" emacsmode="-*- markdown -*-">
+                   <link rel="Shortcut Icon" href="images/sslog.ico" type="image/x-icon" />
+                  **sslog: Speedy Structured C++17 logging library**
+                  <a href="https://github.com/dfeneyrou/sslog">Go to code</a>
+
+<h1> @@ <a href="index.html">Overview</a> </h1>
+<h1> @@ <a href="#">Logging configuration</a> </h1>
+
+This chapter focuses on the configuration of the logger.
+
+The dynamic configuration is mainly done at two levels:
+ - the sink, which receives the logs and process them
+ - the storage collector, which collects the logs from all threads and funnel them to the sink
+
+| Configuration API                               | Description                                                            |
+|-------------------------------------------------|------------------------------------------------------------------------|
+| [ssSetSink](#sssetsink)                         | Sets the new sink configuration                                        |
+| [ssSetStorageLevel](#sssetstoragelevel)         | Convenience helper to configure only the storage level of the sink     |
+| [ssSetConsoleLevel](#sssetconsolelevel)         | Convenience helper to configure only the console level of the sink     |
+| [ssSetConsoleFormatter](#sssetconsoleformatter) | Convenience helper to configure only the console formatter of the sink |
+| [ssGetSink](#ssgetsink)                         | Returns the current sink configuration                                 |
+| [ssSetCollector](#sssetcollector)               | Sets the new collector configuration                                   |
+| [ssGetCollector](#ssgetcollector)               | Returns the current collector configuration                            |
+
+
+## ssSetSink
+
+A log sink is a destination where log data is sent and stored. It’s a component in a logging system responsible for receiving, processing (optionally), and persisting log messages. <br>
+Think of it as a “sink” where all your log data flows and ends up.
+
+The sink structure is:
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+struct Sink {
+    Level       consoleLevel     = Level::info;
+    ConsoleMode consoleMode      = ConsoleMode::Color;
+    std::string consoleFormatter = "[%L] [%Y-%m-%dT%H:%M:%S.%f%z] [%c] [thread %t] %v%Q";
+    bool        useUTCTime       = false;
+
+    Level        liveNotifLevel = Level::off;
+    LiveNotifCbk liveNotifCbk;
+
+    std::string path;
+    Level       storageLevel            = Level::info;
+    uint64_t    splitFileMaxBytes       = 0;
+    uint32_t    splitFileMaxDurationSec = 0;
+    uint32_t    fileMaxQty              = 0;
+    uint32_t    fileMaxFileAgeSec       = 0;
+
+    Level    detailsLevel             = Level::off;
+    uint32_t detailsBeforeAfterMinSec = 5;
+ };
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+| Member                     | Type           | Description                                                                                                                                                    | Default Value                                         |
+|----------------------------|----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------|
+| `consoleLevel`             | `Level`        | Minimum log level for console output                                                                                                                           | `Level::info`                                         |
+| `consoleMode`              | `ConsoleMode`  | The console output mode (see `ConsoleMode` enum).                                                                                                              | `ConsoleMode::Color`                                  |
+| `consoleFormatter`         | `std::string`  | The format string for console log messages.  Supports [format specifiers](#formatspecifiers)                                                                   | `"[%L] [%Y-%m-%dT%H:%M:%S.%f%z] [%c] [thread %t] %v"` |
+| `useUTCTime`               | `bool`         | If `true`, the console and the path date specifiers use UTC time. If `false` local time is used (default)                                                      | `false`                                               |
+| `liveNotifLevel`           | `Level`        | Minimum log level for live notifications                                                                                                                       | `Level::off`                                          |
+| `liveNotifCbk`             | `LiveNotifCbk` | Callback for each log with level equal or above the live notification level                                                                                        | `none`                                                |
+| `path`                     | `std::string`  | Path to the log folder.  If empty, no storage is performed.  Date [format specifiers](#formatspecifiers) are allowed (e.g., "log-%H%M%S").                     | ""                                                    |
+| `storageLevel`             | `Level`        | Minimum log level for the sink to store to disk.                                                                                                               | `Level::info`                                         |
+| `splitFileMaxBytes`        | `uint64_t`     | Maximum size in byte of a log file before split. A value of 0 disables file splitting by size.                                                                 | 0                                                     |
+| `splitFileMaxDurationSec`  | `uint32_t`     | Maximum duration in second of a log file before split.  A value of 0 disables file splitting by duration.                                                      | 0                                                     |
+| `fileMaxQty`               | `uint32_t`     | Maximum number of rolling log files to keep.  0 means no limit.                                                                                                | 0                                                     |
+| `fileMaxFileAgeSec`        | `uint32_t`     | Files older than this age in second are removed.  0 means no age limit.                                                                                        | 0                                                     |
+| `detailsLevel`             | `Level`        | Minimum log level for storing details.  <br> Detailed logs are kept on disk only around requests. Details level must be strictly lower than the storage level. | `Level::off`                                          |
+| `detailsBeforeAfterMinSec` | `uint32_t`     | Guaranteed time in second before and after a details request for which detailed logs are retained.                                                             | 5                                                     |
+
+The `Level` enumeration defines the severity levels for log messages:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+enum class Level { trace = 0, debug = 1, info = 2, warn = 3, error = 4, critical = 5, off = 6 };
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+| Value      | Description                                  |
+|------------|----------------------------------------------|
+| `trace`    | Most verbose, used for detailed debugging.   |
+| `debug`    | Information useful for debugging.            |
+| `info`     | General informational messages.              |
+| `warn`     | Potential problems or warnings.              |
+| `error`    | Errors that need attention.                  |
+| `critical` | Severe errors that require immediate action. |
+| `off`      | Disables logging for this level.             |
+
+The `ConsoleMode` enumeration defines the console output mode:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+enum class ConsoleMode { Off, Mono, Color };
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+| Value   | Description                                  |
+|---------|----------------------------------------------|
+| `Off`   | Disables console logging.                    |
+| `Mono`  | Prints console messages in monochrome.       |
+| `Color` | Prints console messages with colored output. |
+
+The `LiveNotifCbk` callback structure is defined as:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+using LiveNotifCbk = std::function&lt;void(uint64_t timestampUtcNs, uint32_t level, const char* threadName, const char* category,
+                                        const char* logContent, const uint8_t* binaryBuffer, uint32_t binaryBufferSize)&gt;;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+// Sets the new sink configuration
+void ssSetSink(const Sink& config);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+    sslog::Sink config;
+
+    config.consoleLevel = sslog::Level::info;
+    config.consoleFormatter = "[%L] [%Y-%m-%dT%H:%M:%S.%f%z] [%c] [thread %t] %v%Q";
+
+    config.pathPattern = "logdir-%y%m%d-%H:%M:%S"; // Ex: logdir-250619-08:15:54
+    config.storageLevel = sslog::Level::info;
+
+    config.fileMaxBytes = 5 * 1024*1024; // Rotate after reaching 5 MB
+    config.fileMaxDurationSec = 600;     // Or rotate after 10 mn
+    config.fileMaxQty = 10;              // Keep the last 10 files
+    config.fileMaxFileAgeSec = 3600;     // Keep only files more recent than 1 hour
+
+    config.detailsLevel = sslog::Level::trace; // On request, enables details up to 'trace'
+    config.detailsBeforeAfterMinSec = 10;      // Garanteed time for keeping details before and after the request
+
+    config.liveNotifLevel = Level::critical; // Apply a programmatic behavior for critical logs
+    config.liveNotifCbk = [] (uint64_t timestampUtcNs, uint32_t level, const char* threadName, const char* category,
+                              const char* logContent, const uint8_t* binaryBuffer, uint32_t binaryBufferSize)
+                              {
+                                  sendEmergencyMail("support@world.com", timestampUtcNs, category, logContent);
+                              };
+
+    ssSetSink(config);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#### Details on the storage of detailed logs
+
+Some important points to know about this feature:
+
+ - The granularity of keeping detailed logs is per file. Without file split, the interest of the feature is thus reduced.
+   - Splitting a log file has very few drawbacks nor cost
+ - The `Sink` field `splitFileMaxDurationSec` provides the insurance to have at least this duration of details before the request of details
+   - Typically, if such request falls very close to a new file after a split, both the current and previous file may be kept.
+ - The detailed logs are always collected and processed but stored in separate files. These files are removed once they is certainty that no request covers them.
+
+#### Details on the live notifications
+
+The typical usages of this service are:
+ - react dynamically to logs with high levels
+ - redirect log information to another component
+
+Callbacks are called in the logging user thread, which means that the processing time in the callback shall be short not to disturb the logging threads.
+
+!!! warning Caution
+    There is no callback serialization on `sslog` side, for genericity reasons. <br>
+    If needed, it is up to the user to make the callback thread-safe (for instance guarding by a mutex)
+
+
+#### Note on the API design
+
+It is a voluntary design choice to propose a simple configuration API based on a fixed structure and only one function. <br>
+Such API does not covers indeed the general case of N abstract sinks built with the help of some code, but this simple and hard-to-fail API covers probably 95% of the use-cases.
+
+## ssSetStorageLevel
+
+This function is a convenience helper to configure only the storage level of the current sink.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+// Set the storage level
+void ssSetStorageLevel(sslog::Level level);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+ssSetStorageLevel(sslog::Level::trace);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## ssSetConsoleLevel
+
+This function is a convenience helper to configure only the console level of the current sink.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+// Set the console level
+void ssSetConsoleLevel(sslog::Level level);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+ssSetConsoleLevel(sslog::Level::trace);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## ssSetConsoleFormatter
+
+This function is a convenience helper to configure only the console formatter of the current sink.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+// Set the console formatter
+void ssSetConsoleFormatter(const string& formatter);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+ssSetConsoleFormatter("[%L] [%Y-%m-%dT%H:%M:%S.%f%z] [%c] [thread %t] %v%Q");
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## ssGetSink
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+// Returns the current sink configuration
+void ssGetSink();
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+sslog::Sink config = ssGetSink();
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## ssSetCollector
+
+A collector is the mechanism which collects the logs from any thread and stores them in "log banks" for the sink thread to process them later.
+
+This configuration is more a matter of optimization of resources than offering features:
+  - Too large a buffer and memory is wasted
+  - Too short a buffer and logs are either delayed or dropped
+One key criteria is the log peak rate which is fully application dependent.
+
+The collector structure is:
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+struct Collector {
+    uint32_t stringBufferBytes  = 100000;
+    uint32_t dataBufferBytes    = 1000000;
+    double flushingMaxLatencyMs = 1000.;
+    SaturationPolicy dataSaturationPolicy = SaturationPolicy::Wait;
+};
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+| Member                 | Type               | Description                                                                                                                | Default Value |
+|------------------------|--------------------|----------------------------------------------------------------------------------------------------------------------------|---------------|
+| `stringBufferBytes`    | `uint32_t`         | Size of the string collection buffer in bytes between two asynchronous flushes. Two buffers are instantiated.              | 100000        |
+| `dataBufferBytes`      | `uint32_t`         | Size of the data collection buffer in bytes between two asynchronous flushes. Four buffers are instantiated.               | 1000000       |
+| `flushingMaxLatencyMs` | `double`           | Maximum latency (in milliseconds) before buffers are flushed. They may be flushed before.                                  | 1000.         |
+| `dataSaturationPolicy` | `SaturationPolicy` | Policy when the data buffers are saturated. Strings are always in `wait` policy.  See `SaturationPolicy` enum for details. | `Wait`        |
+
+The `SaturationPolicy` enumeration defines the behavior of the collector when the internal buffers are full (which depends on the peak log rate):
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+enum class SaturationPolicy { Drop, Wait };
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+| Value  | Description                                                                                     |
+|--------|-------------------------------------------------------------------------------------------------|
+| `Drop` | Ensures constant log collection duration in user threads, at the price of the content integrity |
+| `Wait` | Ensures the log integrity, at the price of possible slow-down of the user threads               |
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+// Sets the new collector configuration
+void ssSetCollector(const Collector& config);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+    sslog::Collector config;
+
+    config.stringBufferBytes = 32768;
+    config.dataBufferBytes = 100000;
+    config.flushingMaxLatencyMs = 10000.;
+    config.dataSaturationPolicy = SaturationPolicy::Drop;
+
+    ssSetCollector(config);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### Details on the log collection
+
+The collector mechanism uses simple double banks of buffers
+
+ - double bank for unique strings
+ - double bank for "standard" logs
+ - double bank for "detailed" logs
+
+Buffers are flushed on disk either due to their filling rate or the value of the configuration field `flushingMaxLatencyMs` and swapped, so that there is always at any time a free buffer to fill, while the other is being flushed.
+
+## ssGetCollector
+
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+// Sets the new collector configuration
+void ssGetCollector();
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+// Returns the current collector configuration
+sslog::Collector config = ssGetCollector();
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## Format specifiers
+
+A string format specifier is a placeholder within a string that allows you to insert values of different data types into the string during formatting. <br>
+It acts as a template, defining how the values should be represented in the final string.
+
+##### Declaration
+
+The special specifiers are defined as follows:
+
+| Pattern | Description                                       |
+|---------|---------------------------------------------------|
+| `%t`    | Thread id                                         |
+| `%v`    | The actual text to log                            |
+| `%c`    | Category                                          |
+| `%L`    | The log level of the message (ex: "INFO")         |
+| `%l`    | Short log level of the message (ex: "I")          |
+| `%a`    | Abbreviated weekday name (ex: "Mon")              |
+| `%A`    | Full weekday name (ex: "Monday")                  |
+| `%b`    | Abbreviated month name (ex: "Jan")                |
+| `%B`    | Full month name (ex: "January")                   |
+| `%y`    | Year in 2 digits (ex: 25)                         |
+| `%Y`    | Year in 4 digits (ex: 2025)                       |
+| `%m`    | Month in 2 digits (ex: 01)                        |
+| `%d`    | Day of month in 2 digits (ex: 17)                 |
+| `%p`    | AM/PM                                             |
+| `%z`    | ISO 8601 offset from UTC in timezone (ex: +01:00) |
+| `%H`    | Hours in 24 format                                |
+| `%h`    | Hours in 12 format                                |
+| `%M`    | Minutes                                           |
+| `%S`    | Seconds                                           |
+| `%e`    | Millisecond part of the current second            |
+| `%f`    | Microsecond part of the current second            |
+| `%g`    | Nanosecond part of the current second             |
+| `%E`    | Millisecond since epoch                           |
+| `%F`    | Microsecond since epoch                           |
+| `%G`    | Nanosecond since epoch                            |
+| `%Q`    | end of line and multiline binary buffer dump      |
+| `%q`    | " (+ buffer of size N)" or nothing if empty       |
+
+##### Example
+
+For example, `[%L] [%Y-%m-%dT%H:%M:%S.%f%z] [%c] [thread %t] %v%Q` gives the following log output:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ none
+[DEBUG] [2025-02-26T16:17:47.375088+01:00] [/animal/pet/dog] [thread main] surname=mirza weight=12.9_kg
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+## Compile-time configuration
+
+Some types of configuration have to be done at compile time as they opt-in or -out some features with dependencies, or configure some behavior at start time before the user has the hand.
+
+!!! Tip Compile-time configuration must be consistent in all included instances of the header library.
+    This can be achieved by either:
+     - Defining such compile-time variable in the build system
+     - Including a wrapper header with contains the configuration definitions followed by the library include
+     - Modifying the value inside the header (not ideal due to the interference with upgrades)
+     - Defining the variables before each include (not recommended, breaking the DRY principle and error prone)
+
+The list of compile-time variable, their default value and effects are:
+
+| Variable                       | Description                                                                                          | Default Value                |
+|--------------------------------|------------------------------------------------------------------------------------------------------|------------------------------|
+| `SSLOG_DISABLE`                | Fully disable 'sslog' at compile-time if set to 1                                                    | Not defined                  |
+| `SSLOG_NO_PRINTF_FORMAT_CHECK` | Disable the printf format check if set to 1                                                          | 0                            |
+| `SSLOG_NO_AUTOSTART`           | Disable the auto start if set to 1 <br> In this case, `ssStart()` has to be called explicitely       | 0                            |
+| `SSLOG_NO_CATCH_SIGNALS`       | Disable installing some signals handlers (ABRT, FPE, ILL, SEGV, TERM and INT) if set to 1            | 0                            |
+| `SSLOG_NO_CATCH_SIGINT`        | Disable installing the SIGINT signal if set to 1. No effect if SSLOG_NO_CATCH_SIGNALS is 1           | 0                            |
+| `SSLOG_STACKTRACE`             | Enables stack trace logging when a crash occurs if set to 1 <br> On linux, requires libunwind-dev and libdw-dev | 0 on Linux <br> 1 on Windows |
+
+
+<h1> @@ <a href="logging_reference_api.md.html">Logging reference API</a> </h1>
+<h1> @@ <a href="sslogread_python_module.md.html">sslogread Python module</a> </h1>
+<h1> @@ <a href="sslogread_cpp_api.md.html">sslogread C++ API</a> </h1>
+<h1> @@ <a href="sscat.md.html">sscat</a> </h1>
+
+
+<script>markdeepOptions = {tocStyle:'long', definitionStyle:'long'};</script>
+<link rel="stylesheet" href="sslog.css">
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

@@ -1,0 +1,348 @@
+                   <meta charset="utf-8" emacsmode="-*- markdown -*-">
+                   <link rel="Shortcut Icon" href="images/sslog.ico" type="image/x-icon" />
+                  **sslog: Speedy Structured C++17 logging library**
+                  <a href="https://github.com/dfeneyrou/sslog">Go to code</a>
+
+<h1> @@ <a href="index.html">Overview</a> </h1>
+<h1> @@ <a href="configuration_reference_api.md.html">Logging configuration</a> </h1>
+<h1> @@ <a href="#">Logging reference API</a> </h1>
+
+This chapter focuses on the logging API.
+
+## Logging API
+
+Logging message requires at least 3 kinds of information:
+ - The **logging level** backed in the API name.
+   - Beyond the naming, it is up to the user to really decide the semantic of these levels
+
+ - The **category** being typically a coarse classification <br>
+   The string structure and usage is totally up to the user:
+     - Ex: name of the app. "viewer", "router2"...
+     - Ex: domain of the message. "graphic", "scheduler"...
+     - Ex: hierarchical classification. "/graphic/fonts/rasterize", "/scheduler/idle queue"...
+       - Note that the filtering accepts wildcard, so filtering on "/graphic*" may match several categories
+
+ - The message **format string and arguments**, exactly as for standard printf
+
+### Backing argument's names and units
+
+`sslog` leverages the fact that strings are one of the most versatile structure, by using a simple but efficient trick: <br>
+**In the format string, stucked words before an argument represent a name and the ones after it represent a unit.**
+
+"Stucked word" means a non space separated word. To enhance readability, characters among '_', '-', '=' and ':' are ignored.
+
+Example:
+ - `"weight%dkg"`, `"weight=%d_kg"`, `"weight:%d:kg"` all associate to the argument the name **`weight`** and the unit **`kg`**
+ - `"weight %d kg"` does not provide any name nor unit to the argument, because separated by space
+
+!!! Tip To fully benefit from the log information, consider the format string as part of the code
+    As for code, this implies thinking about its structure and usage. <br>
+    It also implies that you can have **"log bugs"** when the naming or units are malformed.
+    The flexibility comes indeed at a price. <br>
+    Fortunately keeping control and consistency is easy with the `sslogread` API.
+
+### Messages
+
+Logging messages is similar to the `printf` API
+
+  - with the addition of an initial `category` field
+  - with name variants depending on the desired log level
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+void ssTrace    (const char* category, const char* format, ...);
+
+void ssDebug    (const char* category, const char* format, ...);
+
+void ssInfo     (const char* category, const char* format, ...);
+
+void ssWarn     (const char* category, const char* format, ...);
+
+void ssError    (const char* category, const char* format, ...);
+
+void ssCritical (const char* category, const char* format, ...);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+ssInfo("myApp/main", "First message on console with sslog!");
+ssError("myApp/main", "First error with parameters: %d %-8s %f %08lx", 14, "stream", 3.14, 1234567890UL);
+
+ssDebug("/animal/pet/dog", "surname=%-12s weight=%4.1f_kg", "mirza", 12.856);
+ssTrace("/animal/pet/cat", "surname=%-12s weight=%4.1f_kg", "misty", 5.5);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### Binary buffers
+
+Binary buffers can be logged the same way the messages are, with the following constraints:
+
+ - One logged binary buffer per message
+ - The collector buffer size (configured with `dataBufferBytes`) must be big enough to contain the biggest binary buffer
+
+As it is critical to keep the compiler built-in check on the format string,
+the design choice are limited and the buffer shall be provided after the category, as a pointer and size.
+
+!!! warning
+    Because they are described in the configuration documentation, don't be confused with the fact that another kind of
+    "buffer" exist. These are internal `sslog` log collection "buffers" and are not manipulated by users.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+void ssTraceBuffer    (const char* category, const uint8_t* buffer, size_t bufferSize, const char* format, ...);
+
+void ssDebugBuffer    (const char* category, const uint8_t* buffer, size_t bufferSize, const char* format, ...);
+
+void ssInfoBuffer     (const char* category, const uint8_t* buffer, size_t bufferSize, const char* format, ...);
+
+void ssWarnBuffer     (const char* category, const uint8_t* buffer, size_t bufferSize, const char* format, ...);
+
+void ssErrorBuffer    (const char* category, const uint8_t* buffer, size_t bufferSize, const char* format, ...);
+
+void ssCriticalBuffer (const char* category, const uint8_t* buffer, size_t bufferSize, const char* format, ...);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+std::vector<uint8_t> buffer{0xDE, 0xAD, 0xBE, 0xEF};
+ssDebugBuffer("myApp/archive/dump", buffer.data(), buffer.size(),
+            "Dump of received packet number=%d from client:%s_id", 314, "george");
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+!!!
+    As for log arguments, buffers can be retrieved by the `sslogread` library.
+
+### Compile-time opt-in of groups of logs
+
+Independently of the log level, `sslog` provides a way to opt-in or out some groups of log, at compile time. In case of opt-out, no code will be emitted at all.<br>
+The typical usage is for instance to enable some logs only in some conditions like development phase or tests and removed in production.
+
+This features has 2 requirements:
+
+ - Define a compilation flag with the following name: `SSLOG_GROUP_<group name>` set to 1 (enabled) or 0 (disabled) <br>
+   Ex: `#define SSLOG_GROUP_VERY_LOW_LEVEL 0`
+
+ - Use the related group API derived from the API above but starting with `ssg` instead of `ss` and adding the `<group name>` as first parameter <br>
+   Ex: `ssgError(VERY_LOW_LEVEL, "myApp/main", "First error with parameters: %d %-8s %f %08lx", 14, "stream", 3.14, 1234567890UL);`
+
+!!! error
+    When using the compile-time group feature, be wary of **defining properly each used group name**. <br>
+    Failing to do so trigs an unpleasant cascade of errors related to the non-avoidable presence of preprocessor macros.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+
+// Replace <GROUPNAME> with the extension of the compile-time flag defined with SSLOG_GROUP_<GROUPNAME>
+
+void ssgTrace    (<GROUPNAME>, const char* category, const char* format, ...);
+
+void ssgDebug    (<GROUPNAME>, const char* category, const char* format, ...);
+
+void ssgInfo     (<GROUPNAME>, const char* category, const char* format, ...);
+
+void ssgWarn     (<GROUPNAME>, const char* category, const char* format, ...);
+
+void ssgError    (<GROUPNAME>, const char* category, const char* format, ...);
+
+void ssgCritical (<GROUPNAME>, const char* category, const char* format, ...);
+
+void ssgTraceBuffer    (<GROUPNAME>, const char* category, const uint8_t* buffer, size_t bufferSize, const char* format, ...);
+
+void ssgDebugBuffer    (<GROUPNAME>, const char* category, const uint8_t* buffer, size_t bufferSize, const char* format, ...);
+
+void ssgInfoBuffer     (<GROUPNAME>, const char* category, const uint8_t* buffer, size_t bufferSize, const char* format, ...);
+
+void ssgWarnBuffer     (<GROUPNAME>, const char* category, const uint8_t* buffer, size_t bufferSize, const char* format, ...);
+
+void ssgErrorBuffer    (<GROUPNAME>, const char* category, const uint8_t* buffer, size_t bufferSize, const char* format, ...);
+
+void ssgCriticalBuffer (<GROUPNAME>, const char* category, const uint8_t* buffer, size_t bufferSize, const char* format, ...);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+// To define somewhere in the current file, a header, in the build system...
+#define SSLOG_GROUP_VERY_LOW_LEVEL 0    # One group of logs (disabled)
+#define SSLOG_GROUP_BINARY_DUMPS 1      # Another group of logs (enabled)
+
+// When a group name is used, the prefix SSLOG_GROUP_ is not present
+
+ssgError(VERY_LOW_LEVEL, "myApp/main", "First error with parameters: %d %-8s %f %08lx", 14, "stream", 3.14, 1234567890UL);
+
+std::vector<uint8_t> buffer{0xDE, 0xAD, 0xBE, 0xEF};
+ssgDebugBuffer(BINARY_DUMPS, "myApp/archive/dump", buffer.data(), buffer.size(),
+             "Dump of received packet number=%d from client:%s_id", 314, "George");
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## Other API
+
+This section list the remaining services.
+
+### ssStart
+
+Starting the logging service is automatic. <br>
+This API is usually not needed, except when:
+ - the compilation flag `SSLOG_NO_AUTOSTART` is set to 1
+ - the service has been stopped explicitely with `ssStop()`
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+void ssStart();
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+ ssStart();
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### ssStop
+
+Stopping the logging service is automatic when the process exits. <br>
+It can however be stopped explicitely at any moment.
+
+!!!
+    Stopping the service includes flushing all internal collection buffers, to ensure the integrity of the logs.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+void ssStop();
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+ ssStop();
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### ssIsEnabled and ssgIsEnabled
+
+Sometimes logging requires a preparation with some dedicated code or variable. <br>
+The `ssIsEnabled(...)` and `ssgIsEnabled(...)` APIs exist to avoid preparing in vain due to disabled logging or higher level configured.
+
+They take into account both the information of the compile-time and run-time configurations.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+// Returns 'true' if the logging at this level is active
+bool ssIsEnabled(sslog::Level level);
+
+// Returns 'true' if the logging for this group and at this level is active
+bool ssgIsEnabled(<GROUPNAME>, sslog::Level level);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+if (ssgIsEnabled(BINARY_DUMPS, sslog::Level::debug) {
+    Buffer myBuffer = getBufferFromCostlyFunction();
+    ssgDebugBuffer(BINARY_DUMPS, "myApp/archive/dump", myBuffer,
+                 "Dump of received packet number=%d from client:%s_id", 314, "george");
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### ssSetThreadName
+
+Thread identifiers are part of the log information. As a default, the identifier is the stringified thread ID provided by the OS. <br>
+It can be replaced by a fixed and human readable name with the `ssSetThreadName(...)` API.
+
+!!!
+    Thread naming should appears early as already past logs will be unaffected.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+void ssSetThreadName(const char* name);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+ssSetThreadName("worker");
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### ssRequestForDetails
+
+This function is part of the "details on request" feature. <br>
+A call to `ssRequestForDetails()` keeps the details around the moment of the call according to the sink configuration.
+
+If the sink is not configured for the details on request, this call has no effect.
+
+##### Declaration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+void ssRequestForDetails();
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+ssRequestForDetails();
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### ssGetStats
+
+This function returns some statistics, mostly counters. <br>
+They are cleared when the logger starts.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+struct Stats {
+    uint32_t storedStrings;
+    uint32_t storedLogs;
+    uint32_t storedBytes;
+    uint32_t droppedLogs;
+    uint32_t delayedLogs;
+    uint32_t delayedStrings;
+
+    uint32_t maxUsageDataBufferBytes;
+    uint32_t maxUsageStringBufferBytes;
+
+    uint32_t createdDataFiles;
+    uint32_t removedDataFiles;
+
+    uint32_t requestForDetailsQty;
+};
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+| Member                      | Description                                                          |
+|-----------------------------|----------------------------------------------------------------------|
+| `storedStrings`             | Counter of stored unique strings                                     |
+| `storedLogs`                | Counter of stored logs                                               |
+| `storedBytes`               | Counter of stored bytes (string and logs)                            |
+| `droppedLogs`               | Counter of dropped logs due to the `Drop` buffer saturation policy   |
+| `delayedLogs`               | Counter of delayed logs due to the `Wait` buffer saturation policy   |
+| `delayedStrings`            | Counter of delayed strings (always `Wait` buffer saturation policy)  |
+| `maxUsageDataBufferBytes`   | Maximum filled level of the log collection buffer (not a counter)    |
+| `maxUsageStringBufferBytes` | Maximum filled level of the string collection buffer (not a counter) |
+| `createdDataFiles`          | Counter of created data files due to file split policy               |
+| `removedDataFiles`          | Counter of removed data files due to file limitation policy          |
+| `requestForDetailsQty`      | Counter of calls to request for details                              |
+
+
+##### Example
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+sslog::Collector collectorCfg = ssGetCollector();
+
+sslog::Stats stats = ssGetStats();
+
+printf("The maximum usage of the log collection buffer is %.1f%%\n",
+       100.*stats.maxUsageDataBufferBytes / collectorCfg.dataBufferBytes);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+<h1> @@ <a href="sslogread_python_module.md.html">sslogread Python module</a> </h1>
+<h1> @@ <a href="sslogread_cpp_api.md.html">sslogread C++ API</a> </h1>
+<h1> @@ <a href="sscat.md.html">sscat</a> </h1>
+
+<script>markdeepOptions = {tocStyle:'long', definitionStyle:'long'};</script>
+<link rel="stylesheet" href="sslog.css">
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
