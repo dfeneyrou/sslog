@@ -4,8 +4,8 @@
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
-# LATER: ZSTD decompression support. Mandatory for the Python module, for more reliable distribution
-# find_package(zstd REQUIRED)
+# ZSTD decompression support. Mandatory for the Python module, for more reliable distribution
+find_package(zstd REQUIRED)
 
 # Some definitions set(SETUP_PY_IN ${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in)
 set(SETUP_PY ${CMAKE_CURRENT_BINARY_DIR}/setup.py)

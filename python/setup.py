@@ -28,14 +28,18 @@ import shutil
 import pathlib
 from setuptools import setup, find_packages, Extension
 
-# Deduce some parameters
-extra_compilation_flags = ["-DSSLOG_NO_AUTOSTART=1"]
+# - Require C++17
+# - ZSTD decompression support. Mandatory for the Python module, for more reliable distribution
+extra_compilation_flags = ["-DSSLOG_NO_AUTOSTART=1", "-DWITH_ZSTD=1"]
 extra_link_args = []
+extra_data_files = None
 if sys.platform != "win32":
-    extra_compilation_flags += ["-std=c++17", "-DWITH_ZSTD=1"]
+    extra_compilation_flags += ["-std=c++17"]
     extra_link_args += ["-l:libzstd.a"]
 else:
-    extra_compilation_flags += ["/std:c++17"]  # @TEMP No way yet to build with github actions on windows with ZSTD
+    extra_compilation_flags += ["/std:c++17"]
+    extra_link_args += ["libzstd.dll.a"]
+    extra_data_files = [('lib\\site-packages\\', [os.getenv("zstd_LIBRARY")])]  # Also package the Zstd DLL
 
 classifiers_list = [
     "Intended Audience :: Developers",
@@ -103,4 +107,5 @@ setup(
     url="https://github.com/dfeneyrou/sslog",
     packages=find_packages(),
     ext_modules=[Extension("sslogread", sources=sources, extra_compile_args=extra_compilation_flags, extra_link_args=extra_link_args, include_dirs=["sslogread"])],
+    data_files=extra_data_files
 )

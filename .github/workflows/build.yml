@@ -6,7 +6,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
@@ -37,7 +38,16 @@ jobs:
       VS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\
     steps:
 
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download Zstandard release package 1.5.7
+      run: |
+          mkdir zstd_dev
+          cd zstd_dev
+          Invoke-WebRequest -Uri "https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-v1.5.7-win64.zip" -OutFile "zstd-v1.5.7-win64.zip"
+          Expand-Archive -Path "zstd-v1.5.7-win64.zip" -DestinationPath "."
+          Rename-Item -Path "zstd-v1.5.7-win64" -NewName zstd
 
     - uses: actions/setup-python@v5
       with:
@@ -54,7 +64,10 @@ jobs:
           mkdir build
           cd build
           call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
-          cmake .. -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DSSLOG_BUILD_PYTHON_READER=ON
+          set INCLUDE=%GITHUB_WORKSPACE%\zstd_dev\zstd\include;%INCLUDE%
+          set LIB=%GITHUB_WORKSPACE%\zstd_dev\zstd\dll;%LIB%
+          set zstd_LIBRARY=%GITHUB_WORKSPACE%\zstd_dev\zstd\dll\libzstd.dll
+          cmake .. -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DSSLOG_BUILD_PYTHON_READER=ON -Dzstd_INCLUDE_DIR="%GITHUB_WORKSPACE%\zstd_dev\zstd\include" -Dzstd_LIBRARY="%GITHUB_WORKSPACE%\zstd_dev\zstd\dll\libzstd.dll.a"
           nmake
 
     - name: Install python packages
@@ -80,6 +93,14 @@ jobs:
 
     - uses: actions/checkout@v4
 
+    - name: Download Zstandard release package 1.5.7
+      run: |
+          mkdir zstd_dev
+          cd zstd_dev
+          Invoke-WebRequest -Uri "https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-v1.5.7-win64.zip" -OutFile "zstd-v1.5.7-win64.zip"
+          Expand-Archive -Path "zstd-v1.5.7-win64.zip" -DestinationPath "."
+          Rename-Item -Path "zstd-v1.5.7-win64" -NewName zstd
+
     - uses: actions/setup-python@v5
       with:
         python-version: '3.8'
@@ -93,7 +114,10 @@ jobs:
       run: |
           cd build38
           call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
-          cmake .. -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DSSLOG_BUILD_PYTHON_READER=ON
+          set INCLUDE=%GITHUB_WORKSPACE%\zstd_dev\zstd\include;%INCLUDE%
+          set LIB=%GITHUB_WORKSPACE%\zstd_dev\zstd\dll;%LIB%
+          set zstd_LIBRARY=%GITHUB_WORKSPACE%\zstd_dev\zstd\dll\libzstd.dll
+          cmake .. -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DSSLOG_BUILD_PYTHON_READER=ON -Dzstd_INCLUDE_DIR="%GITHUB_WORKSPACE%\zstd_dev\zstd\include" -Dzstd_LIBRARY="%GITHUB_WORKSPACE%\zstd_dev\zstd\dll\libzstd.dll"
           nmake python_reader
 
     - uses: actions/setup-python@v5
@@ -109,7 +133,10 @@ jobs:
       run: |
           cd build39
           call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
-          cmake .. -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DSSLOG_BUILD_PYTHON_READER=ON
+          set INCLUDE=%GITHUB_WORKSPACE%\zstd_dev\zstd\include;%INCLUDE%
+          set LIB=%GITHUB_WORKSPACE%\zstd_dev\zstd\dll;%LIB%
+          set zstd_LIBRARY=%GITHUB_WORKSPACE%\zstd_dev\zstd\dll\libzstd.dll
+          cmake .. -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DSSLOG_BUILD_PYTHON_READER=ON -Dzstd_INCLUDE_DIR="%GITHUB_WORKSPACE%\zstd_dev\zstd\include" -Dzstd_LIBRARY="%GITHUB_WORKSPACE%\zstd_dev\zstd\dll\libzstd.dll"
           nmake python_reader
 
     - uses: actions/setup-python@v5
@@ -125,7 +152,10 @@ jobs:
       run: |
           cd build310
           call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
-          cmake .. -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DSSLOG_BUILD_PYTHON_READER=ON
+          set INCLUDE=%GITHUB_WORKSPACE%\zstd_dev\zstd\include;%INCLUDE%
+          set LIB=%GITHUB_WORKSPACE%\zstd_dev\zstd\dll;%LIB%
+          set zstd_LIBRARY=%GITHUB_WORKSPACE%\zstd_dev\zstd\dll\libzstd.dll
+          cmake .. -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DSSLOG_BUILD_PYTHON_READER=ON -Dzstd_INCLUDE_DIR="%GITHUB_WORKSPACE%\zstd_dev\zstd\include" -Dzstd_LIBRARY="%GITHUB_WORKSPACE%\zstd_dev\zstd\dll\libzstd.dll"
           nmake python_reader
 
     - uses: actions/setup-python@v5
@@ -141,7 +171,10 @@ jobs:
       run: |
           cd build311
           call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
-          cmake .. -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DSSLOG_BUILD_PYTHON_READER=ON
+          set INCLUDE=%GITHUB_WORKSPACE%\zstd_dev\zstd\include;%INCLUDE%
+          set LIB=%GITHUB_WORKSPACE%\zstd_dev\zstd\dll;%LIB%
+          set zstd_LIBRARY=%GITHUB_WORKSPACE%\zstd_dev\zstd\dll\libzstd.dll
+          cmake .. -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DSSLOG_BUILD_PYTHON_READER=ON -Dzstd_INCLUDE_DIR="%GITHUB_WORKSPACE%\zstd_dev\zstd\include" -Dzstd_LIBRARY="%GITHUB_WORKSPACE%\zstd_dev\zstd\dll\libzstd.dll"
           nmake python_reader
 
     - uses: actions/setup-python@v5
@@ -157,7 +190,10 @@ jobs:
       run: |
           cd build312
           call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
-          cmake .. -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DSSLOG_BUILD_PYTHON_READER=ON
+          set INCLUDE=%GITHUB_WORKSPACE%\zstd_dev\zstd\include;%INCLUDE%
+          set LIB=%GITHUB_WORKSPACE%\zstd_dev\zstd\dll;%LIB%
+          set zstd_LIBRARY=%GITHUB_WORKSPACE%\zstd_dev\zstd\dll\libzstd.dll
+          cmake .. -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DSSLOG_BUILD_PYTHON_READER=ON -Dzstd_INCLUDE_DIR="%GITHUB_WORKSPACE%\zstd_dev\zstd\include" -Dzstd_LIBRARY="%GITHUB_WORKSPACE%\zstd_dev\zstd\dll\libzstd.dll"
           nmake python_reader
 
     - uses: actions/upload-artifact@v4

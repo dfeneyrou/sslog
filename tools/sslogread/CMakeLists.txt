@@ -6,10 +6,14 @@
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# ZSTD decompression support, if available
+find_package(zstd)
+
 # Compilation flags
 # =================
 
 if(MSVC)
+  # Windows
   add_compile_options(/DUNICODE) # Unicode app
   add_compile_options(/W4 /permissive-)
   add_compile_options(/wd4996) # Disable the "This function or variable may be unsafe", pushing for
@@ -20,19 +24,26 @@ if(MSVC)
   add_compile_options(/wd4127) # Disable the "conditional expression is constant" warning,
                                # applicable only from C++17
   add_compile_options(/EHsc)
-else()
-  add_compile_options(-Wall -Wextra)
-endif()
 
-# ZSTD decompression support, if available
-find_package(zstd)
-if(zstd_FOUND)
-  add_definitions(-DWITH_ZSTD=1)
-  if(zstd::libzstd_static)
-    set(SSLOGREAD_ZSTD_LIBS zstd::libzstd_static)
-  else()
-    set(SSLOGREAD_ZSTD_LIBS zstd::libzstd_shared)
+  if(zstd_FOUND)
+    add_definitions(-DWITH_ZSTD=1)
+    set(SSLOGREAD_ZSTD_LIBS ${zstd_LIBRARY})
+    set(SSLOGREAD_ZSTD_INCLUDE ${zstd_INCLUDE_DIR})
   endif()
+
+else()
+  # Linux
+  add_compile_options(-Wall -Wextra)
+
+  if(zstd_FOUND)
+    add_definitions(-DWITH_ZSTD=1)
+    if(zstd::libzstd_static)
+      set(SSLOGREAD_ZSTD_LIBS zstd::libzstd_static)
+    else()
+      set(SSLOGREAD_ZSTD_LIBS zstd::libzstd_shared)
+    endif()
+  endif()
+
 endif()
 
 # Add user flags
@@ -51,7 +62,7 @@ set(SSLOGREAD_SRC
 # ==================
 add_library(sslogread STATIC ${SSLOGREAD_SRC})
 target_include_directories(sslogread INTERFACE include)
-target_include_directories(sslogread PRIVATE include)
+target_include_directories(sslogread PRIVATE include "${SSLOGREAD_ZSTD_INCLUDE}")
 target_link_libraries(sslogread sslog ${SSLOGREAD_ZSTD_LIBS} Threads::Threads)
 
 # Library installation
