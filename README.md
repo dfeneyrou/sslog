@@ -1,4 +1,5 @@
 
+[![Build Status](https://github.com/dfeneyrou/sslog/workflows/build/badge.svg)](https://github.com/dfeneyrou/sslog/actions?workflow=build)
 
 <img src="docs/images/logo.png" alt="Speedy Structured logging library" width="280" align="right" />
 
