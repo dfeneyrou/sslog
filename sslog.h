@@ -558,7 +558,7 @@ inline clockTick_t ssLogTestVirtualTime = 0x8000000000000000ULL;
 void
 testIncrementVirtualTimeMs(uint64_t milliseconds)
 {
-    ssLogTestVirtualTime += milliseconds;  // TickToNs is artificially 1e-6;
+    ssLogTestVirtualTime += milliseconds * 1000000ULL;
 }
 #endif
 
@@ -593,7 +593,7 @@ getUtcSystemClockNs()
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 #else
     // Testing behavior: virtual time
-    return 0x8000000000000000ULL + ssLogTestVirtualTime * 1000000ULL;  // Strange date but consistent with the ticks
+    return 0x8000000000000000ULL + ssLogTestVirtualTime;
 #endif
 }
 
@@ -1235,7 +1235,7 @@ inline struct GlobalContext {
     void initTime()
     {
         // Measure the high performance clock frequency with the standard nanosecond clock
-#if SSLOG_VIRTUAL_TIME_FOR_TEST_ONLY != 0
+#if SSLOG_VIRTUAL_TIME_FOR_TEST_ONLY == 0
         double tickToNs = 1e6;
         for (int i = 0; i < 2; ++i) {  // Twice just in case an interrupt occurs during the first loop
             clockTick_t highPerfT0 = getHiResClockTick();
@@ -1247,7 +1247,7 @@ inline struct GlobalContext {
                                               (double)(highPerfT1 - highPerfT0));
         }
 #else
-        double tickToNs = 1e-6;  // 1 tick = 1 millisecond. Internal test only with virtual time
+        double tickToNs = 1.;  // Internal test only with virtual time
 #endif
         timeConverter.init(tickToNs, getUtcSystemClockNs(), getHiResClockTick());
     }
