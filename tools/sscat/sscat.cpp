@@ -49,7 +49,7 @@ using namespace sslogread;
 // =========================
 
 bool
-parseParameters(int argc, char** argv, std::filesystem::path& logDirPath, bool& isVerbose, bool& isJson, bool& withUtcTime, bool& isColor,
+parseParameters(int argc, char** argv, std::filesystem::path& logDirPath, bool& isInfo, bool& isJson, bool& withUtcTime, bool& isColor,
                 bool& doDisplayUsage, std::vector<Rule>& rules, std::string& consoleFormatter, std::string& jsonDateFormatter)
 {
 #define ADD_RULE_IF_NEEDED() \
@@ -64,8 +64,8 @@ parseParameters(int argc, char** argv, std::filesystem::path& logDirPath, bool& 
     for (int argNbr = 1; argNbr < argc; ++argNbr) {
         const char* argStr = argv[argNbr];
 
-        if (strcmp(argStr, "-v") == 0) {
-            isVerbose = true;
+        if (strcmp(argStr, "-i") == 0) {
+            isInfo = true;
         }
 
         else if (strcmp(argStr, "-h") == 0 || strcmp(argStr, "--help") == 0) {
@@ -178,7 +178,6 @@ Definitions:
  <pattern> is a search string, potentially containing wildcard. Ex: "*home*log*"
 
 Options:
- -v           : verbose output (debug)
  -h           : this help
 
 Filtering options:
@@ -200,10 +199,13 @@ Filtering options:
                          Caution: no pattern matching on names and values
  -o            : end a serie of 'AND' filters and start a new one (OR)
 
-Output options:
+Output modes:
  default      : colored text formatted logs
  -m           : monochrome text formatted logs
  -j           : JSON output
+ -i           : information on the logs (date, stats, strings, ...)
+
+Output options:
  -u           : use UTC time instead of local time
  -p <format>  : formatter configuration of log display. Default "[%%L] [%%Y-%%m-%%dT%%H:%%M:%%S.%%f%%z] [%%c] [thread %%t] %%v%%Q"
  -q <format>  : formatter configuration of JSON date. Default "%%G"
@@ -245,7 +247,7 @@ main(int argc, char** argv)
 {
     // Parse input parameters
     bool                  doDisplayUsage = false;
-    bool                  isVerbose      = false;
+    bool                  isInfo         = false;
     bool                  isJson         = false;
     bool                  withUtcTime    = false;
     bool                  isColor        = true;
@@ -254,7 +256,7 @@ main(int argc, char** argv)
     std::string           consoleFormatter  = "[%L] [%Y-%m-%dT%H:%M:%S.%f%z] [%c] [thread %t] %v%Q";
     std::string           jsonDateFormatter = "%G";
 
-    bool isParsingError = parseParameters(argc, argv, logDirPath, isVerbose, isJson, withUtcTime, isColor, doDisplayUsage, rules,
+    bool isParsingError = parseParameters(argc, argv, logDirPath, isInfo, isJson, withUtcTime, isColor, doDisplayUsage, rules,
                                           consoleFormatter, jsonDateFormatter);
     if (isParsingError) { return 1; }
     if (doDisplayUsage) {
@@ -271,30 +273,51 @@ main(int argc, char** argv)
     }
 
     // Display
-    if (isVerbose) {
+    if (isInfo) {
         sslog::priv::TextFormatter fc;
         fc.init("%Y-%m-%dT%H:%M:%S.%g%z", withUtcTime, isColor);
         char dateBuffer[128];
         fc.format(dateBuffer, sizeof(dateBuffer), session.getUtcSystemClockOriginNs(), SSLOG_LEVEL_QTY, "", "", "", nullptr, 0, false);
 
-        printf("Log date         : %s (%s)\n", dateBuffer, withUtcTime ? "UTC" : "local time");
-        printf("Clock resolution : %f ns\n", session.getClockResolutionNs());
-        printf("Strings          : %" PRId64 "\n", session.getIndexedStringQty());
+        printf("Start date   : %s (%s)\n", dateBuffer, withUtcTime ? "UTC" : "local time");
+        printf("Duration     : %.3f s\n", 1e-9 * session.getLogDurationNs());
+        printf("Size         : %.3f MB\n", 1e-6 * session.getLogByteQty());
+        printf("Quantity     : %lu logs\n", session.getLogQty());
+        printf("Arg quantity : %lu (%.1f B/log) (%.1f B/arg)\n", session.getArgQty(),
+               (double)session.getLogByteQty() / (double)session.getLogQty(),
+               (double)session.getLogByteQty() / (double)session.getArgQty());
+        printf("Clock res.   : %f ns\n", session.getClockResolutionNs());
+        printf("Arg names    : ");
+        bool isFirst = true;
+        for (const std::string& s : session.getArgNameStrings()) {
+            if (!isFirst) { printf(", "); }
+            isFirst = false;
+            printf("%s", s.c_str());
+        }
+        printf("\nArg units    : ");
+        isFirst = true;
+        for (const std::string& s : session.getArgUnitStrings()) {
+            if (!isFirst) { printf(", "); }
+            isFirst = false;
+            printf("%s", s.c_str());
+        }
+        printf("\nStrings      : %" PRId64 "\n", session.getIndexedStringQty());
         for (uint32_t i = 0; i < session.getIndexedStringQty(); ++i) {
             uint8_t flag = session.getIndexedStringFlags(i);
-            printf("    %-3u [%s%s%s%s]  %s\n", i, (flag & FlagCategory) ? "C" : " ", (flag & FlagThread) ? "T" : " ",
+            printf("               %-3u [%s%s%s%s]  %s\n", i, (flag & FlagCategory) ? "C" : " ", (flag & FlagThread) ? "T" : " ",
                    (flag & FlagFormat) ? "F" : " ", (flag & FlagArgValue) ? "A" : " ", session.getIndexedString(i));
         }
-        printf("\n");
     }
 
-    if (isJson) {
+    else if (isJson) {
         LogHandlerJson handler(session, jsonDateFormatter, withUtcTime);
         if (!session.query(rules, [&handler](const LogStruct& log) { handler.notifyLog(log); }, errorMessage)) {
             fprintf(stderr, "Error: %s\n", errorMessage.c_str());
             return 1;
         }
-    } else {
+    }
+
+    else {
         LogHandlerText handler(session, consoleFormatter, withUtcTime, isColor);
         if (!session.query(rules, [&handler](const LogStruct& log) { handler.notifyLog(log); }, errorMessage)) {
             fprintf(stderr, "Error: %s\n", errorMessage.c_str());

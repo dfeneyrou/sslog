@@ -39,8 +39,8 @@ ends_with(std::string_view str, std::string_view suffix)
     return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-static bool
-loadUncompressedFile(const std::filesystem::path& filePath, std::string& errorMessage, std::vector<uint8_t>& buffer)
+bool
+LogSession::loadUncompressedFile(const std::filesystem::path& filePath, std::string& errorMessage, std::vector<uint8_t>& buffer) const
 {
 #if defined(_MSC_VER)
 #pragma warning(push)
@@ -61,7 +61,7 @@ loadUncompressedFile(const std::filesystem::path& filePath, std::string& errorMe
     size_t fileSize = ftell(fileHandle);
     fseek(fileHandle, 0L, SEEK_SET);
     if (fileSize > (1ULL << 32)) {
-        errorMessage = std::string("the file is too large to be correct (") + std::to_string(fileSize) + " bytes)";
+        errorMessage = std::string("the file is too large to be valid (") + std::to_string(fileSize) + " bytes)";
         fclose(fileHandle);
         return false;
     }
@@ -74,12 +74,14 @@ loadUncompressedFile(const std::filesystem::path& filePath, std::string& errorMe
         return false;
     }
 
+    if (_doSumFileStatSizes) { _statLogBytes += fileSize; }
+
     fclose(fileHandle);
     return true;
 }
 
-static bool
-loadCompressedFile(const std::filesystem::path& filePath, std::string& errorMessage, std::vector<uint8_t>& buffer)
+bool
+LogSession::loadCompressedFile(const std::filesystem::path& filePath, std::string& errorMessage, std::vector<uint8_t>& buffer) const
 {
 #if WITH_ZSTD
     // Load the compressed file
@@ -127,6 +129,8 @@ LogSession::readBaseInfos(const std::filesystem::path& logDirPath, std::string& 
         return false;
     }
 
+    _statLogBytes       = 0;
+    _doSumFileStatSizes = true;
     std::vector<uint8_t> stringBuffer;
     if (std::filesystem::exists(logDirPath / "base.sslog")) {
         if (!loadUncompressedFile(logDirPath / "base.sslog", errorMessage, stringBuffer)) { return false; }
@@ -136,10 +140,13 @@ LogSession::readBaseInfos(const std::filesystem::path& logDirPath, std::string& 
         errorMessage = std::string("the file '") + (logDirPath / "base.sslog").string() + "' does not exist";
         return false;
     }
+    _doSumFileStatSizes = false;
+    _statBaseBytes      = _statLogBytes;
+    _statLogBytes       = 0;
+
     // Parse the header
-    constexpr int headerSize = 32;
-    uint8_t*      header     = stringBuffer.data();
-    int           offset     = 0;
+    uint8_t* header = stringBuffer.data();
+    int      offset = 0;
     if (strncmp((char*)&header[offset], "SSSSSS", 6) != 0) {
         errorMessage = "this is not a sslog file type";
         return false;
@@ -162,11 +169,11 @@ LogSession::readBaseInfos(const std::filesystem::path& logDirPath, std::string& 
     char* tmp2HighResTickToNs = (char*)&tmpHighResTickToNs;
     _tickToNs                 = *((double*)tmp2HighResTickToNs);
     offset += 8;
-    assert(offset == headerSize);
+    assert(offset == BaseHeaderSize);
 
     // Remove the header
-    memmove(header, header + headerSize, stringBuffer.size() - headerSize);
-    stringBuffer.resize(stringBuffer.size() - headerSize);
+    memmove(header, header + BaseHeaderSize, stringBuffer.size() - BaseHeaderSize);
+    stringBuffer.resize(stringBuffer.size() - BaseHeaderSize);
     setStringBuffer(std::move(stringBuffer));
 
     return true;
@@ -190,9 +197,8 @@ LogSession::readDataInfos(const std::filesystem::path& dataFilePath, DataInfos& 
     }
 
     // Parse the header
-    constexpr int headerSize = 32;
-    uint8_t*      header     = infos.logBuffer.data();
-    int           offset     = 0;
+    uint8_t* header = infos.logBuffer.data();
+    int      offset = 0;
     if (strncmp((char*)&header[offset], "SSSSSS", 6) != 0) {
         errorMessage = "Error: this is not a sslog file type";
         return false;
@@ -213,11 +219,11 @@ LogSession::readDataInfos(const std::filesystem::path& dataFilePath, DataInfos& 
     infos.steadyClockOriginTick = 0;
     for (size_t i = 0; i < 8; ++i) { infos.steadyClockOriginTick |= ((uint64_t)header[offset + i] << (8 * i)); }
     offset += 8;
-    assert(offset == headerSize);
+    assert(offset == DataHeaderSize);
 
     // Remove the header
-    memmove(header, header + headerSize, infos.logBuffer.size() - headerSize);
-    infos.logBuffer.resize(infos.logBuffer.size() - headerSize);
+    memmove(header, header + DataHeaderSize, infos.logBuffer.size() - DataHeaderSize);
+    infos.logBuffer.resize(infos.logBuffer.size() - DataHeaderSize);
     return true;
 }
 

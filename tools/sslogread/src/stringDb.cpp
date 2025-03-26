@@ -46,7 +46,7 @@ LogSession::setStringBuffer(std::vector<uint8_t>&& newStringBuffer)
 
     _stringsFlags.clear();
     _stringsFlags.resize(_stringsStartOffsets.size(), 0);
-    _areStringFlagsInitialized = false;
+    _isMetaInfoPresent = false;
 
     // Analyze the arguments of the detected parameters
     _stringsArgs.clear();
@@ -93,9 +93,9 @@ LogSession::setStringBuffer(std::vector<uint8_t>&& newStringBuffer)
 std::vector<uint32_t>
 LogSession::getStringIndexes(const std::string& pattern, uint8_t stringFlagsMask) const
 {
-    if (!_areStringFlagsInitialized && stringFlagsMask != 0) {
+    if (!_isMetaInfoPresent && stringFlagsMask != 0) {
         std::string errorMessage;
-        initializeStringFlags(errorMessage);
+        extractMetaInfos(errorMessage);
     }
 
     // Analyze the pattern
@@ -115,9 +115,9 @@ LogSession::getStringIndexes(const std::string& pattern, uint8_t stringFlagsMask
 std::vector<std::string>
 LogSession::getArgNameStrings() const
 {
-    if (!_areStringFlagsInitialized) {
+    if (!_isMetaInfoPresent) {
         std::string errorMessage;
-        initializeStringFlags(errorMessage);
+        extractMetaInfos(errorMessage);
     }
 
     sslog::priv::FlatHashTable<uint32_t> lkupArgName;  // To keep strings unique
@@ -144,9 +144,9 @@ LogSession::getArgNameStrings() const
 std::vector<std::string>
 LogSession::getArgUnitStrings() const
 {
-    if (!_areStringFlagsInitialized) {
+    if (!_isMetaInfoPresent) {
         std::string errorMessage;
-        initializeStringFlags(errorMessage);
+        extractMetaInfos(errorMessage);
     }
 
     sslog::priv::FlatHashTable<uint32_t> lkupArgUnit;  // To keep strings unique
@@ -170,18 +170,71 @@ LogSession::getArgUnitStrings() const
     return outputList;
 }
 
-bool
-LogSession::initializeStringFlags(std::string& errorMessage) const
+uint64_t
+LogSession::getLogQty() const
 {
-    if (_areStringFlagsInitialized) { return true; }
+    if (!_isMetaInfoPresent) {
+        std::string errorMessage;
+        extractMetaInfos(errorMessage);
+    }
+    return _statLogs;
+}
+
+uint64_t
+LogSession::getArgQty() const
+{
+    if (!_isMetaInfoPresent) {
+        std::string errorMessage;
+        extractMetaInfos(errorMessage);
+    }
+    return _statArgs;
+}
+
+uint64_t
+LogSession::getLogByteQty() const
+{
+    if (!_isMetaInfoPresent) {
+        std::string errorMessage;
+        extractMetaInfos(errorMessage);
+    }
+    return _statLogBytes;
+}
+
+uint64_t
+LogSession::getLogDurationNs() const
+{
+    if (!_isMetaInfoPresent) {
+        std::string errorMessage;
+        extractMetaInfos(errorMessage);
+    }
+    return _statDurationNs;
+}
+
+bool
+LogSession::extractMetaInfos(std::string& errorMessage) const
+{
+    if (_isMetaInfoPresent) { return true; }
     std::vector<uint8_t>& flags = _stringsFlags;
+
+    _statLogs           = 0;
+    _statArgs           = 0;
+    _statLogBytes       = _statBaseBytes;
+    _doSumFileStatSizes = true;
+    uint64_t minTimeNs  = 0xFFFFFFFFFFFFFFFFULL;
+    uint64_t maxTimeNs  = 0;
 
     bool queryStatus = query(
         {},
-        [this, &flags](const sslogread::LogStruct& log) {
+        [this, &flags, &minTimeNs, &maxTimeNs](const sslogread::LogStruct& log) {
             if (log.categoryIdx < flags.size()) { flags[log.categoryIdx] |= sslogread::FlagCategory; }
             if (log.threadIdx < flags.size()) { flags[log.threadIdx] |= sslogread::FlagThread; }
             if (log.formatIdx < flags.size()) { flags[log.formatIdx] |= sslogread::FlagFormat; }
+
+            if (log.timestampUtcNs < minTimeNs) { minTimeNs = log.timestampUtcNs; }
+            if (log.timestampUtcNs > maxTimeNs) { maxTimeNs = log.timestampUtcNs; }
+            _statLogs += 1;
+            _statArgs += log.args.size();
+
             for (const sslogread::Arg& arg : log.args) {
                 if (arg.pType == sslogread::ArgType::StringIdx && arg.vStringIdx < flags.size()) {
                     flags[arg.vStringIdx] |= sslogread::FlagArgValue;
@@ -190,8 +243,11 @@ LogSession::initializeStringFlags(std::string& errorMessage) const
         },
         errorMessage);
 
+    _statDurationNs     = (maxTimeNs >= minTimeNs) ? maxTimeNs - minTimeNs : 0;
+    _doSumFileStatSizes = false;
     if (!queryStatus) { return false; }
-    _areStringFlagsInitialized = true;
+    _isMetaInfoPresent = true;
+
     return true;
 }
 

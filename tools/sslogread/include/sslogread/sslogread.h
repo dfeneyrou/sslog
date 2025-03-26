@@ -113,9 +113,9 @@ class LogSession
     }
     uint8_t getIndexedStringFlags(uint32_t stringIndex) const
     {
-        if (!_areStringFlagsInitialized) {
+        if (!_isMetaInfoPresent) {
             std::string errorMessage;
-            initializeStringFlags(errorMessage);
+            extractMetaInfos(errorMessage);
         }
         return (stringIndex < _stringsFlags.size()) ? _stringsFlags[stringIndex] : 0;
     }
@@ -124,11 +124,19 @@ class LogSession
     std::vector<std::string> getArgUnitStrings() const;
 
     // Misc
-    uint64_t           getUtcSystemClockOriginNs() const { return _utcSystemClockStartNs; }
-    double             getClockResolutionNs() const { return _tickToNs; }
+    uint64_t getUtcSystemClockOriginNs() const { return _utcSystemClockStartNs; }
+    double   getClockResolutionNs() const { return _tickToNs; }
+    uint64_t getLogQty() const;
+    uint64_t getArgQty() const;
+    uint64_t getLogByteQty() const;
+    uint64_t getLogDurationNs() const;
+
     static const char* getLevelName(sslog::Level level) { return sslog::priv::getLevelName(level); }
 
    private:
+    static constexpr int BaseHeaderSize = 32;
+    static constexpr int DataHeaderSize = 32;
+
     // Structures and internal classes
     struct DataInfos {
         uint32_t             formatVersion          = 0;
@@ -207,13 +215,23 @@ class LogSession
     bool readBaseInfos(const std::filesystem::path& logDirPath, std::string& errorMessage);
     bool readDataInfos(const std::filesystem::path& dataFilePath, DataInfos& infos, std::string& errorMessage) const;
     void setStringBuffer(std::vector<uint8_t>&& newStringBuffer);
-    bool initializeStringFlags(std::string& errorMessage) const;
+    bool extractMetaInfos(std::string& errorMessage) const;
+    bool loadUncompressedFile(const std::filesystem::path& filePath, std::string& errorMessage, std::vector<uint8_t>& buffer) const;
+    bool loadCompressedFile(const std::filesystem::path& filePath, std::string& errorMessage, std::vector<uint8_t>& buffer) const;
 
     // Session meta information
-    uint32_t _formatVersion         = 0;
-    uint64_t _sessionId             = 0;
-    uint64_t _utcSystemClockStartNs = 0;
-    double   _tickToNs              = 1.;
+    uint32_t     _formatVersion         = 0;
+    uint64_t     _sessionId             = 0;
+    uint64_t     _utcSystemClockStartNs = 0;
+    double       _tickToNs              = 1.;
+    mutable bool _doSumFileStatSizes    = false;
+
+    // Stats
+    mutable uint64_t _statLogs       = 0;
+    mutable uint64_t _statArgs       = 0;
+    mutable uint64_t _statLogBytes   = 0;
+    mutable uint64_t _statBaseBytes  = 0;
+    mutable uint64_t _statDurationNs = 0;
 
     // List of data files
     std::vector<std::string> _dataFileList;
@@ -224,7 +242,7 @@ class LogSession
     std::vector<uint32_t>                    _stringsStartOffsets;  // Array of indexes of the string start offsets
     std::vector<std::vector<ArgNameAndUnit>> _stringsArgs;          // Array of per-string list of arguments
     mutable std::vector<uint8_t>             _stringsFlags;         // Array of flags per string
-    mutable bool                             _areStringFlagsInitialized = false;
+    mutable bool                             _isMetaInfoPresent = false;
 };
 
 }  // namespace sslogread
