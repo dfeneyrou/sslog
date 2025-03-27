@@ -1,4 +1,3 @@
-// The MIT License (MIT)
 //
 // Copyright(c) 2025, Damien Feneyrou <dfeneyrou@gmail.com>
 //
@@ -20,26 +19,28 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "logHandlerText.h"
+#pragma once
 
-#include "sslogread/utils.h"
+#include <string>
 
-LogHandlerText::LogHandlerText(const sslogread::LogSession& session, const std::string& formatterString, bool withUtcTime, bool withColor)
-    : _session(session)
+#include "sslog.h"
+#include "sslogread/sslogread.h"
+
+class LogHandlerValues
 {
-    _tf.init(formatterString.c_str(), withUtcTime, withColor, session.getUtcSystemClockOriginNs());
-}
+   public:
+    LogHandlerValues(const sslogread::LogSession& session, const std::string& dateFormatterString, bool withUtcTime,
+                     const std::vector<std::string>& argNames, const std::string& separator);
+    ~LogHandlerValues() = default;
 
-void
-LogHandlerText::notifyLog(const sslogread::LogStruct& log)
-{
-    char logBuffer[8192];
+    void notifyLog(const sslogread::LogStruct& log);
 
-    sslogread::vsnprintfLog(_filledFormatbuffer, sizeof(_filledFormatbuffer), _session.getIndexedString(log.formatIdx), log.args,
-                            &_session);
-    _tf.format(logBuffer, sizeof(logBuffer), log.timestampUtcNs, (int)log.level, _session.getIndexedString(log.threadIdx),
-               _session.getIndexedString(log.categoryIdx), _filledFormatbuffer, log.buffer.data(), (uint32_t)log.buffer.size(), true);
-
-    // fwrite on stdout is much faster than printf with non-formatting strings
-    fwrite(logBuffer, 1, strlen(logBuffer), stdout);
-}
+   private:
+    const sslogread::LogSession&   _session;
+    const std::vector<std::string> _argNames;
+    const std::string              _separator;
+    bool                           _isFirstDisplayed = true;
+    char                           _filledFormatbuffer[8192];
+    char                           _formattedDate[128];
+    sslog::priv::TextFormatter     _tf;
+};

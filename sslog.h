@@ -732,7 +732,7 @@ class TimeConverter
 class TextFormatter
 {
    public:
-    void init(const char* formatterPattern, bool withUtcTime, bool withColor)
+    void init(const char* formatterPattern, bool withUtcTime, bool withColor, clockNs_t recordStartUtcNs)
     {
         if (!_isTimezoneInitialized) {
             _isTimezoneInitialized = true;
@@ -755,8 +755,9 @@ class TextFormatter
                 _timezoneBuffer[3] = ':';
             }
         }
-        _withColor   = withColor;
-        _withUtcTime = withUtcTime;
+        _withColor        = withColor;
+        _withUtcTime      = withUtcTime;
+        _recordStartUtcNs = recordStartUtcNs;
 
         // Decompose the formatter pattern for more efficient display
         _tokens.clear();
@@ -804,6 +805,9 @@ class TextFormatter
     //  %E 	Millisecond since epoch
     //  %F 	Microsecond since epoch
     //  %G 	Nanosecond since epoch
+    //  %I  Milliseconds since start of the record
+    //  %J  Microseconds since start of the record
+    //  %K  Nanoseconds  since start of the record
     //  %Q  end of line and multiline binary buffer dump
     //  %q  ' (+ buffer of size N)' or nothing if empty
     void format(char* outBuf, uint32_t outBufSize, clockNs_t timestampUtcNs, uint32_t level, const char* threadName, const char* category,
@@ -833,7 +837,11 @@ class TextFormatter
                                                     "July",    "August",   "September", "October", "November", "December"};
 
         // Get usable information about time & date of the log
-        if (!_withUtcTime) timestampUtcNs += _localTimeBiasNs;
+        uint64_t recordStartUtcNs = _recordStartUtcNs;
+        if (!_withUtcTime) {
+            timestampUtcNs += _localTimeBiasNs;
+            recordStartUtcNs += _localTimeBiasNs;
+        }
         std::time_t epoch_time = static_cast<std::time_t>(timestampUtcNs / 1000000000);
 #if defined(_MSC_VER)
         std::tm ptmTmp;
@@ -944,13 +952,22 @@ class TextFormatter
                     if (pEnd - p >= 9) { p += snprintf(p, pEnd - p, "%09" PRIu64, timestampUtcNs % 1000000000UL); }
                     break;
                 case 'E':
-                    if (pEnd - p >= 3) { p += snprintf(p, pEnd - p, "%" PRIu64, timestampUtcNs / 1000000UL); }
+                    if (pEnd - p >= 14) { p += snprintf(p, pEnd - p, "%" PRIu64, timestampUtcNs / 1000000UL); }
                     break;
                 case 'F':
-                    if (pEnd - p >= 6) { p += snprintf(p, pEnd - p, "%" PRIu64, timestampUtcNs / 1000UL); }
+                    if (pEnd - p >= 17) { p += snprintf(p, pEnd - p, "%" PRIu64, timestampUtcNs / 1000UL); }
                     break;
                 case 'G':
-                    if (pEnd - p >= 9) { p += snprintf(p, pEnd - p, "%" PRIu64, timestampUtcNs); }
+                    if (pEnd - p >= 20) { p += snprintf(p, pEnd - p, "%" PRIu64, timestampUtcNs); }
+                    break;
+                case 'I':
+                    if (pEnd - p >= 6) { p += snprintf(p, pEnd - p, "%" PRIu64, (timestampUtcNs - recordStartUtcNs) / 1000000UL); }
+                    break;
+                case 'J':
+                    if (pEnd - p >= 9) { p += snprintf(p, pEnd - p, "%" PRIu64, (timestampUtcNs - recordStartUtcNs) / 1000UL); }
+                    break;
+                case 'K':
+                    if (pEnd - p >= 12) { p += snprintf(p, pEnd - p, "%" PRIu64, timestampUtcNs - recordStartUtcNs); }
                     break;
                 case 'q':
                     if (pEnd - p >= 29 && binaryBufferSize > 0) { p += snprintf(p, pEnd - p, " (+ buffer of size %u)", binaryBufferSize); }
@@ -1000,11 +1017,13 @@ class TextFormatter
     }
 
    private:
-    bool    _withColor;
-    bool    _withUtcTime;
-    bool    _isTimezoneInitialized = false;
-    char    _timezoneBuffer[8];    // Formatted time zone, assumed constant
-    int64_t _localTimeBiasNs = 0;  // Call to localtime is very expensive due to the call to getenv("TZ")
+    bool      _withColor;
+    bool      _withUtcTime;
+    bool      _isTimezoneInitialized = false;
+    char      _timezoneBuffer[8];     // Formatted time zone, assumed constant
+    int64_t   _localTimeBiasNs  = 0;  // Call to localtime is very expensive due to the call to getenv("TZ")
+    clockNs_t _recordStartUtcNs = 0;
+
     struct Token {
         char        ttype;
         std::string postText;
@@ -1191,7 +1210,7 @@ inline struct GlobalContext {
         dataFileSwitchTick = getHiResClockTick() + timeConverter.durationNsToTick(1e9 * sink.splitFileMaxDurationSec);
 
         // Precompute information in the formatter (pattern decomposition, timezone...)
-        textFormatter.init(sink.consoleFormatter.c_str(), sink.useUTCTime, sink.consoleMode == ConsoleMode::Color);
+        textFormatter.init(sink.consoleFormatter.c_str(), sink.useUTCTime, sink.consoleMode == ConsoleMode::Color, utcSystemClockStartNs);
 
         // We rely on the fact that the initial pathname is empty
         // Reset the files and storage logging state
@@ -1202,7 +1221,7 @@ inline struct GlobalContext {
             // Get the pathname from the path pattern
             char          tmpPath[256];
             TextFormatter tf;
-            tf.init(sink.path.c_str(), sink.useUTCTime, false);
+            tf.init(sink.path.c_str(), sink.useUTCTime, false, utcSystemClockStartNs);
             tf.format(tmpPath, sizeof(tmpPath), timeConverter.getUtcNs(getHiResClockTick()), SSLOG_LEVEL_QTY - 1, "", "", "", nullptr, 0,
                       false);
             if (strlen(tmpPath) == 0) { snprintf(tmpPath, sizeof(tmpPath), "default_due_to_empty_pathname"); }

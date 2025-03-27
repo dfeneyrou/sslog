@@ -39,6 +39,7 @@
 #define SSLOG_NO_AUTOSTART 1
 #include "logHandlerJson.h"
 #include "logHandlerText.h"
+#include "logHandlerValues.h"
 #include "sslog.h"
 #include "sslogread/sslogread.h"
 
@@ -48,9 +49,11 @@ using namespace sslogread;
 // Main
 // =========================
 
+enum class Mode { Help, ColorText, MonoText, Json, Infos, Values };
+
 bool
-parseParameters(int argc, char** argv, std::filesystem::path& logDirPath, bool& isInfo, bool& isJson, bool& withUtcTime, bool& isColor,
-                bool& doDisplayUsage, std::vector<Rule>& rules, std::string& consoleFormatter, std::string& jsonDateFormatter)
+parseParameters(int argc, char** argv, std::filesystem::path& logDirPath, Mode& mode, bool& withUtcTime, std::vector<Rule>& rules,
+                std::string& consoleFormatter, std::string& dateFormatter, std::vector<std::string>& argNames, std::string& argSeparator)
 {
 #define ADD_RULE_IF_NEEDED() \
     if (addNewRule) {        \
@@ -58,21 +61,17 @@ parseParameters(int argc, char** argv, std::filesystem::path& logDirPath, bool& 
         addNewRule = false;  \
     }
 
-    bool isParsingError = false;
-    bool addNewRule     = true;
+    bool isParsingOk = true;
+    bool addNewRule  = true;
 
     for (int argNbr = 1; argNbr < argc; ++argNbr) {
         const char* argStr = argv[argNbr];
 
-        if (strcmp(argStr, "-i") == 0) {
-            isInfo = true;
+        if (strcmp(argStr, "-h") == 0 || strcmp(argStr, "--help") == 0) {
+            mode = Mode::Help;
         }
 
-        else if (strcmp(argStr, "-h") == 0 || strcmp(argStr, "--help") == 0) {
-            doDisplayUsage = true;
-        }
-
-        else if (strcmp(argStr, "-l") == 0 && argNbr + 1 < argc) {
+        else if (strcmp(argStr, "-lmin") == 0 && argNbr + 1 < argc) {
             const char* levelStr = argv[++argNbr];
             bool        found    = false;
             for (int l = 0; l < SSLOG_LEVEL_QTY; ++l) {
@@ -84,7 +83,7 @@ parseParameters(int argc, char** argv, std::filesystem::path& logDirPath, bool& 
             }
             if (!found) {
                 fprintf(stderr, "Error: '%s' is not a valid level name for -l\n", levelStr);
-                isParsingError = true;
+                isParsingOk = false;
             }
         } else if (strcmp(argStr, "-lmax") == 0 && argNbr + 1 < argc) {
             const char* levelStr = argv[++argNbr];
@@ -98,7 +97,7 @@ parseParameters(int argc, char** argv, std::filesystem::path& logDirPath, bool& 
             }
             if (!found) {
                 fprintf(stderr, "Error: '%s' is not a valid level name for -lmax\n", levelStr);
-                isParsingError = true;
+                isParsingOk = false;
             }
         } else if (strcmp(argStr, "-bmin") == 0 && argNbr + 1 < argc) {
             ADD_RULE_IF_NEEDED();
@@ -129,16 +128,29 @@ parseParameters(int argc, char** argv, std::filesystem::path& logDirPath, bool& 
             rules.back().arguments.push_back(argv[++argNbr]);
         }
 
+        else if (strcmp(argStr, "-m") == 0) {
+            mode = Mode::MonoText;
+        } else if (strcmp(argStr, "-j") == 0) {
+            mode = Mode::Json;
+        } else if (strcmp(argStr, "-i") == 0) {
+            mode = Mode::Infos;
+        } else if (strcmp(argStr, "-v") == 0) {
+            mode = Mode::Values;
+            if (argNbr + 1 < argc && argv[argNbr + 1][0] != '-') {
+                argNames.push_back(argv[++argNbr]);
+            } else {
+                argNames.push_back({});  // Empty string means timestamp
+            }
+        }
+
         else if (strcmp(argStr, "-u") == 0) {
             withUtcTime = true;
-        } else if (strcmp(argStr, "-m") == 0) {
-            isColor = false;
-        } else if (strcmp(argStr, "-j") == 0) {
-            isJson = true;
         } else if (strcmp(argStr, "-p") == 0 && argNbr + 1 < argc) {
             consoleFormatter = argv[++argNbr];
         } else if (strcmp(argStr, "-q") == 0 && argNbr + 1 < argc) {
-            jsonDateFormatter = argv[++argNbr];
+            dateFormatter = argv[++argNbr];
+        } else if (strcmp(argStr, "-s") == 0 && argNbr + 1 < argc) {
+            argSeparator = argv[++argNbr];
         }
 
         else if (strcmp(argStr, "-o") == 0) {
@@ -147,22 +159,18 @@ parseParameters(int argc, char** argv, std::filesystem::path& logDirPath, bool& 
 
         else if (argStr[0] == '-') {
             fprintf(stderr, "Error: Command line option '%s' is unknown\n", argStr);
-            isParsingError = true;
-        }
-
-        else if (logDirPath.empty()) {
+            isParsingOk = false;
+        } else if (logDirPath.empty()) {
             logDirPath = argStr;
-        }
-
-        else {
+        } else {
             fprintf(stderr, "Error: Only one log directory path must be provided, not '%s' and '%s'\n", logDirPath.string().c_str(),
                     argStr);
-            isParsingError = true;
+            isParsingOk = false;
         }
     }
 
-    doDisplayUsage = doDisplayUsage || logDirPath.empty();
-    return isParsingError;
+    if (logDirPath.empty()) { mode = Mode::Help; }
+    return isParsingOk;
 }
 
 void
@@ -203,12 +211,14 @@ Output modes:
  default      : colored text formatted logs
  -m           : monochrome text formatted logs
  -j           : JSON output
- -i           : information on the logs (date, stats, strings, ...)
+ -i           : information on the logs (date, stats, names, units, strings)
+ -v <name>    : dump only the argument values per line. Empty name means 'timestamp'. Multiple options possible.
 
 Output options:
  -u           : use UTC time instead of local time
  -p <format>  : formatter configuration of log display. Default "[%%L] [%%Y-%%m-%%dT%%H:%%M:%%S.%%f%%z] [%%c] [thread %%t] %%v%%Q"
- -q <format>  : formatter configuration of JSON date. Default "%%G"
+ -q <format>  : formatter configuration of date (for output mode -j and -v). Default "%%G"
+ -s <sep>     : separator string between argument values (for output mode -v). Default " "
 
 Formatting catalog:
     %%t 	Thread id
@@ -236,6 +246,9 @@ Formatting catalog:
     %%E 	Milliseconds since epoch
     %%F 	Microseconds since epoch
     %%G 	Nanoseconds  since epoch
+    %%I 	Milliseconds since start of the record
+    %%J 	Microseconds since start of the record
+    %%K 	Nanoseconds  since start of the record
     %%Q     end of line and multiline binary buffer dump
     %%q     ' (+ buffer of size N)' or nothing if empty
 )~",
@@ -246,20 +259,20 @@ int
 main(int argc, char** argv)
 {
     // Parse input parameters
-    bool                  doDisplayUsage = false;
-    bool                  isInfo         = false;
-    bool                  isJson         = false;
-    bool                  withUtcTime    = false;
-    bool                  isColor        = true;
-    std::filesystem::path logDirPath;
-    std::vector<Rule>     rules;
-    std::string           consoleFormatter  = "[%L] [%Y-%m-%dT%H:%M:%S.%f%z] [%c] [thread %t] %v%Q";
-    std::string           jsonDateFormatter = "%G";
+    Mode                     mode = Mode::ColorText;
+    std::filesystem::path    logDirPath;
+    std::vector<Rule>        rules;
+    std::vector<std::string> argNames;
+    std::string              consoleFormatter = "[%L] [%Y-%m-%dT%H:%M:%S.%f%z] [%c] [thread %t] %v%Q";
+    std::string              dateFormatter    = "%G";
+    std::string              argSeparator     = " ";
+    bool                     withUtcTime      = false;
 
-    bool isParsingError = parseParameters(argc, argv, logDirPath, isInfo, isJson, withUtcTime, isColor, doDisplayUsage, rules,
-                                          consoleFormatter, jsonDateFormatter);
-    if (isParsingError) { return 1; }
-    if (doDisplayUsage) {
+    if (!parseParameters(argc, argv, logDirPath, mode, withUtcTime, rules, consoleFormatter, dateFormatter, argNames, argSeparator)) {
+        return 1;
+    }
+
+    if (mode == Mode::Help) {
         displayUsage(argv[0]);
         return 1;
     }
@@ -273,9 +286,9 @@ main(int argc, char** argv)
     }
 
     // Display
-    if (isInfo) {
+    if (mode == Mode::Infos) {
         sslog::priv::TextFormatter fc;
-        fc.init("%Y-%m-%dT%H:%M:%S.%g%z", withUtcTime, isColor);
+        fc.init("%Y-%m-%dT%H:%M:%S.%g%z", withUtcTime, false, session.getUtcSystemClockOriginNs());
         char dateBuffer[128];
         fc.format(dateBuffer, sizeof(dateBuffer), session.getUtcSystemClockOriginNs(), SSLOG_LEVEL_QTY, "", "", "", nullptr, 0, false);
 
@@ -309,8 +322,16 @@ main(int argc, char** argv)
         }
     }
 
-    else if (isJson) {
-        LogHandlerJson handler(session, jsonDateFormatter, withUtcTime);
+    else if (mode == Mode::Json) {
+        LogHandlerJson handler(session, dateFormatter, withUtcTime);
+        if (!session.query(rules, [&handler](const LogStruct& log) { handler.notifyLog(log); }, errorMessage)) {
+            fprintf(stderr, "Error: %s\n", errorMessage.c_str());
+            return 1;
+        }
+    }
+
+    else if (mode == Mode::Values) {
+        LogHandlerValues handler(session, dateFormatter, withUtcTime, argNames, argSeparator);
         if (!session.query(rules, [&handler](const LogStruct& log) { handler.notifyLog(log); }, errorMessage)) {
             fprintf(stderr, "Error: %s\n", errorMessage.c_str());
             return 1;
@@ -318,7 +339,7 @@ main(int argc, char** argv)
     }
 
     else {
-        LogHandlerText handler(session, consoleFormatter, withUtcTime, isColor);
+        LogHandlerText handler(session, consoleFormatter, withUtcTime, (mode == Mode::ColorText));
         if (!session.query(rules, [&handler](const LogStruct& log) { handler.notifyLog(log); }, errorMessage)) {
             fprintf(stderr, "Error: %s\n", errorMessage.c_str());
             return 1;

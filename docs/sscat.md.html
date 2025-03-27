@@ -30,7 +30,6 @@ Definitions:
  <pattern> is a search string, potentially containing wildcard. Ex: "*home*log*"
 
 Options:
- -v           : verbose output (debug)
  -h           : this help
 
 Filtering options:
@@ -52,13 +51,18 @@ Filtering options:
                          Caution: no pattern matching on names and values
  -o            : end a serie of 'AND' filters and start a new one (OR)
 
-Output options:
+Output modes:
  default      : colored text formatted logs
  -m           : monochrome text formatted logs
  -j           : JSON output
+ -i           : information on the logs (date, stats, names, units, strings)
+ -v <name>    : dump only the argument values per line. Empty name means 'timestamp'. Multiple options possible.
+
+Output options:
  -u           : use UTC time instead of local time
  -p <format>  : formatter configuration of log display. Default "[%L] [%Y-%m-%dT%H:%M:%S.%f%z] [%c] [thread %t] %v%Q"
- -q <format>  : formatter configuration of JSON date. Default "%G"
+ -q <format>  : formatter configuration of date (for output mode -j and -v). Default "%G"
+ -s <sep>     : separator string between argument values (for output mode -v). Default " "
 
 Formatting catalog:
     %t  Thread id
@@ -86,9 +90,151 @@ Formatting catalog:
     %E  Milliseconds since epoch
     %F  Microseconds since epoch
     %G  Nanoseconds  since epoch
-    %Q     end of line and multiline binary buffer dump
-    %q     ' (+ buffer of size N)' or nothing if empty
+    %I  Milliseconds since start of the record
+    %J  Microseconds since start of the record
+    %K  Nanoseconds  since start of the record
+    %Q  end of line and multiline binary buffer dump
+    %q  ' (+ buffer of size N)' or nothing if empty
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### Output modes
+
+The 4 major output modes are described in this section
+
+#### Text output
+
+This is the usual log visualization for humans and the default mode.
+
+  - The option `-p` fully configure its appearance.
+  - The option `-u` forces the usage of UTC time instead of the default local time
+  - The option `-m` disable the usage of terminal color for levels
+
+An example of monochome text output is:
+```
+[ERROR] [2025-03-26T22:48:23.573933+01:00] [sslog-test] [thread main] Start of a batch of 25 mixed logs
+[TRACE] [2025-03-26T22:48:23.573934+01:00] [/module1/stats] [thread main] The quick brown fox name_Renard jumps over the lazy dog
+[TRACE] [2025-03-26T22:48:23.573935+01:00] [sslog-test] [thread main] Small log number 1
+[ WARN] [2025-03-26T22:48:23.573935+01:00] [/module1/state] [thread main] Lorem ipsum dolor sit amet voltage=3.3_V intensity=530mA, consectetur adipiscing
+```
+
+#### Json output
+
+This mode highlights the structured content of the logs, and is usually for machines.
+
+ - The option `-j` selects the JSON output mode
+ - The option `-u` forces the usage of UTC time instead of the default local time
+ - The option `-q` configures the format of the date
+
+An example of JSON output is:
+``` json
+{
+  "logs" : [
+    { "timestamp":  "1743029303573933531", "thread": "main", "category": "sslog-test", "level": "error", "format": "Start of a batch of 25 mixed logs",
+      "args": [ ] },
+    { "timestamp":  "1743029303573934603", "thread": "main", "category": "/module1/stats", "level": "trace", "format": "The quick brown fox name_Renard jumps over the lazy dog",
+      "args": [ { "name": "name", "unit": "", "type": "str", "value": "Renard" } ] },
+    { "timestamp":  "1743029303573935083", "thread": "main", "category": "sslog-test", "level": "trace", "format": "Small log number 1",
+      "args": [ ] },
+    { "timestamp":  "1743029303573935785", "thread": "main", "category": "/module1/state", "level": "warn", "format": "Lorem ipsum dolor sit amet voltage=3.3_V intensity=530mA, consectetur adipiscing",
+      "args": [ { "name": "voltage", "unit": "V", "type": "f64", "value": 3.300000 }, { "name": "intensity", "unit": "mA", "type": "s32", "value": 530 } ] } ]
+}
+```
+
+!!!
+   The format string is filled with the argument values so that it can be used directly for display
+
+Further data manipulation can now be performed externally, for instance with the tool [jq](https://jqlang.org/).
+
+#### Log information output
+
+This mode displays meta-information about the logs.
+
+ - The option `-i` selects the information output mode
+ - The option `-u` forces the usage of UTC time instead of the default local time
+
+An example of full information output is:
+``` text
+Start date   : 2025-03-27T22:00:25.948638762+01:00 (local time)
+Duration     : 0.001 s
+Size         : 0.067 MB
+Quantity     : 3750 logs
+Arg quantity : 3600 (17.9 B/log) (18.7 B/arg)
+Clock res.   : 0.556520 ns
+Arg names    : name, voltage, intensity
+Arg units    : V, mA
+Strings      : 31
+               0   [ T  ]  main
+               1   [C   ]  sslog-test
+               2   [  F ]  Start of a batch of 25 mixed logs
+               3   [C   ]  /module1/stats
+               4   [  F ]  The quick brown fox name_%s jumps over the lazy dog
+               5   [   A]  Renard
+               6   [  F ]  Small log number 1
+               7   [C   ]  /module1/state
+               8   [  F ]  Lorem ipsum dolor sit amet voltage=%3.1f_V intensity=%dmA, consectetur adipiscing
+               9   [  F ]  Small log number 2
+               10  [   A]  Mr Tod
+               11  [  F ]  Small log number 3
+               12  [C   ]  /module2/stats
+               13  [   A]  Basil
+               14  [C   ]  /module2/state
+               15  [  F ]  Small log number 4
+               16  [   A]  Roxy
+               17  [  F ]  Small log number 5
+               18  [C   ]  /module3/stats
+               19  [   A]  Flash
+               20  [C   ]  /module3/state
+               21  [  F ]  Small log number 6
+               22  [   A]  Finn
+               23  [  F ]  Small log number 7
+               24  [C   ]  /module4/stats
+               25  [   A]  Happy
+               26  [C   ]  /module4/state
+               27  [  F ]  Small log number 8
+               28  [   A]  Jamie
+               29  [ T  ]  third
+               30  [ T  ]  second
+```
+
+It contains in particular the exhaustive list of unique strings encountered in the logging process and their usage (C=`category`, T=`thread`, F=`format` and A=`argument string value`). <br>
+It also extracts and displays the argument names and units (which are parts of the format strings)
+
+#### Values output
+
+This mode extracts and displays some values of the log arguments per line.
+
+ - The option `-v` selects the value output mode.
+ - This option can be present several times followed by the name of the argument value to display
+ - This option without value means the log timestamp
+   - Ex: `-v -v voltage` first displays the log timestamp, then the value of the voltage argument
+ - The order of the `-v` options determines the output order on the same line
+ - The option `-u` forces the usage of UTC time instead of the default local time
+ - The option `-q` configures the format of the date
+
+!!! Note
+    It is unrelated to the `-a` option which is part of the filtering phase, always applied before any output mode.
+
+!!! Warning
+    Be careful with the consistency of the filtering and the argument names as a not present field will skip the value and shift the output columns.
+
+An example of output for `./bin/sscat sslogDb -f "Lorem ipsum*" -q "%K" -v -v intensity` is given below:
+ - `-f "Lorem ipsum*"` filters and keeps only the logs with the `intensity` named argument (see `sslog` test program)
+ - `-q "%K"` configures the timestamp to be the microseconds since the start of the log record (better for graphs)
+ - `-v -v intensity` asks for the value mode with first the log timestamp then the value of `intensity`
+```
+172266 530
+172266 200
+172267 640
+172268 104
+172269 550
+172270 420
+172271 510
+172271 40
+```
+
+which gives the following graph when piped in gnuplot (for instance, with `... | gnuplot -p -e 'plot "/dev/stdin" using 1:2 with lines'`):
+
+![gnuplot graph of the sscat value output](images/gnuplotGraph.png)
 
 ### Examples
 
@@ -150,22 +296,6 @@ Today, Saturday, is 2025-03-15
 The default format specifier is: `[%L] [%Y-%m-%dT%H:%M:%S.%f%z] [%c] [thread %t] %v%Q`
 
 The list of available specifiers is described in the [logger configuration page](configuration_reference_api.md.html#formatspecifiers)
-
-
-### JSON output
-
-Exporting the log for external processing can be done via the `JSON` format which is textual, simple and widely spread.
-
-The switch to `JSON` output is the option `-j`:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ shell
-sscat &lt;log dir&gt; -j
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The `JSON` date format is configured with the `-q` option. <br>
-Ex:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ shell
-sscat &lt;log dir&gt; -j -q "%Y-%m-%dT%H:%M:%S.%f%z"
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Further data manipulation can now be performed externally, for instance with the tool [jq](https://jqlang.org/).
 

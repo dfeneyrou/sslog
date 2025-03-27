@@ -29,7 +29,7 @@
 class LogHandlerJson
 {
    public:
-    LogHandlerJson(const sslogread::LogSession& session, const std::string& formatterString, bool withUtcTime);
+    LogHandlerJson(const sslogread::LogSession& session, const std::string& dateFormatterString, bool withUtcTime);
     ~LogHandlerJson();
 
     void notifyLog(const sslogread::LogStruct& log);

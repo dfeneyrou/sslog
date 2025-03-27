@@ -67,10 +67,10 @@ jsonEscape(const char* s)
     return &buf[0];
 }
 
-LogHandlerJson::LogHandlerJson(const sslogread::LogSession& session, const std::string& formatterString, bool withUtcTime)
+LogHandlerJson::LogHandlerJson(const sslogread::LogSession& session, const std::string& dateFormatterString, bool withUtcTime)
     : _session(session)
 {
-    _tf.init(formatterString.c_str(), withUtcTime, false);
+    _tf.init(dateFormatterString.c_str(), withUtcTime, false, session.getUtcSystemClockOriginNs());
     printf("{\n  \"logs\" : [\n");
 }
 
@@ -79,7 +79,8 @@ LogHandlerJson::~LogHandlerJson() { printf("  ]\n} \n"); }
 void
 LogHandlerJson::notifyLog(const sslogread::LogStruct& log)
 {
-    const std::vector<sslogread::ArgNameAndUnit>& args = _session.getIndexedStringArgNameAndUnit(log.formatIdx);
+    const std::vector<sslogread::ArgNameAndUnit>& argSpecs = _session.getIndexedStringArgNameAndUnit(log.formatIdx);
+
     if (!_isFirstDisplayed) { printf(",\n"); }
     _isFirstDisplayed = false;
     sslogread::vsnprintfLog(_filledFormatbuffer, sizeof(_filledFormatbuffer), _session.getIndexedString(log.formatIdx), log.args,
@@ -90,46 +91,50 @@ LogHandlerJson::notifyLog(const sslogread::LogStruct& log)
         "      \"args\": [",
         _formattedDate, jsonEscape(_session.getIndexedString(log.threadIdx)), jsonEscape(_session.getIndexedString(log.categoryIdx)),
         sslogread::LogSession::getLevelName(sslog::Level(log.level)), jsonEscape(_filledFormatbuffer));
-    for (uint32_t argIdx = 0; argIdx < log.args.size() && argIdx < args.size(); ++argIdx) {
+
+    for (uint32_t argIdx = 0; argIdx < log.args.size() && argIdx < argSpecs.size(); ++argIdx) {
         const sslogread::Arg& p = log.args[argIdx];
         if (argIdx > 0) printf(",");
+
         switch (p.pType) {
             case sslogread::ArgType::S32:
-                printf(" { \"name\": \"%s\", \"unit\": \"%s\", \"type\": \"s32\", \"value\": %d }", args[argIdx].name.c_str(),
-                       args[argIdx].unit.c_str(), p.vS32);
+                printf(" { \"name\": \"%s\", \"unit\": \"%s\", \"type\": \"s32\", \"value\": %d }", argSpecs[argIdx].name.c_str(),
+                       argSpecs[argIdx].unit.c_str(), p.vS32);
                 break;
             case sslogread::ArgType::U32:
-                printf(" { \"name\": \"%s\", \"unit\": \"%s\", \"type\": \"u32\", \"value\": %u }", args[argIdx].name.c_str(),
-                       args[argIdx].unit.c_str(), p.vU32);
+                printf(" { \"name\": \"%s\", \"unit\": \"%s\", \"type\": \"u32\", \"value\": %u }", argSpecs[argIdx].name.c_str(),
+                       argSpecs[argIdx].unit.c_str(), p.vU32);
                 break;
             case sslogread::ArgType::S64:
-                printf(" { \"name\": \"%s\", \"unit\": \"%s\", \"type\": \"s64\", \"value\": %" PRId64 " }", args[argIdx].name.c_str(),
-                       args[argIdx].unit.c_str(), p.vS64);
+                printf(" { \"name\": \"%s\", \"unit\": \"%s\", \"type\": \"s64\", \"value\": %" PRId64 " }", argSpecs[argIdx].name.c_str(),
+                       argSpecs[argIdx].unit.c_str(), p.vS64);
                 break;
             case sslogread::ArgType::U64:
-                printf(" { \"name\": \"%s\", \"unit\": \"%s\", \"type\": \"u64\", \"value\": %" PRIu64 " }", args[argIdx].name.c_str(),
-                       args[argIdx].unit.c_str(), p.vU64);
+                printf(" { \"name\": \"%s\", \"unit\": \"%s\", \"type\": \"u64\", \"value\": %" PRIu64 " }", argSpecs[argIdx].name.c_str(),
+                       argSpecs[argIdx].unit.c_str(), p.vU64);
                 break;
             case sslogread::ArgType::Float:
-                printf(" { \"name\": \"%s\", \"unit\": \"%s\", \"type\": \"f32\", \"value\": %f }", args[argIdx].name.c_str(),
-                       args[argIdx].unit.c_str(), p.vFloat);
+                printf(" { \"name\": \"%s\", \"unit\": \"%s\", \"type\": \"f32\", \"value\": %f }", argSpecs[argIdx].name.c_str(),
+                       argSpecs[argIdx].unit.c_str(), p.vFloat);
                 break;
             case sslogread::ArgType::Double:
-                printf(" { \"name\": \"%s\", \"unit\": \"%s\", \"type\": \"f64\", \"value\": %f }", args[argIdx].name.c_str(),
-                       args[argIdx].unit.c_str(), p.vDouble);
+                printf(" { \"name\": \"%s\", \"unit\": \"%s\", \"type\": \"f64\", \"value\": %f }", argSpecs[argIdx].name.c_str(),
+                       argSpecs[argIdx].unit.c_str(), p.vDouble);
                 break;
             case sslogread::ArgType::StringIdx:
                 printf(" { \"name\": \"%s\", \"unit\": \"%s\", \"type\": \"str\", \"value\": \"%s\" }",
-                       jsonEscape(args[argIdx].name.c_str()), jsonEscape(args[argIdx].unit.c_str()),
+                       jsonEscape(argSpecs[argIdx].name.c_str()), jsonEscape(argSpecs[argIdx].unit.c_str()),
                        jsonEscape(_session.getIndexedString(p.vStringIdx)));
                 break;
         };
     }
+
     if (!log.buffer.empty()) {
         if (log.args.size() > 0) printf(",");
         sslogread::base64Encode(log.buffer, _base64Output);
         printf(" { \"name\": \"\", \"unit\": \"base64\", \"type\": \"buffer\", \"value\": \"%s\" }", (const char*)&_base64Output[0]);
     }
+
     printf(" ] }");
     fflush(stdout);
 }

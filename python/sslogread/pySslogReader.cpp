@@ -164,7 +164,10 @@ session_query(SessionObject* self, PyObject* args)
 #pragma warning(push)
 #pragma warning(disable : 4996)  // Disable Windows's secure API warnings on snprintf
 #endif
-                snprintf(tmpStr, sizeof(tmpStr), "Unknown dictionary key '%s' for log filter", cKey);
+                snprintf(tmpStr, sizeof(tmpStr),
+                         "Unknown dictionary key '%s' for log filter.\nIt shall be among: level_min, level_max, category, thread, format, "
+                         "buffer_size_min, buffer_size_max, no_category, no_thread, no_format, arguments",
+                         cKey);
 #if defined(_MSC_VER)
 #pragma warning(pop)
 #endif

@@ -49,7 +49,14 @@ endif()
 # Add user flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CUSTOM_FLAGS}")
 
-set(SSCAT_SRC sscat.cpp logHandlerJson.cpp logHandlerJson.h logHandlerText.cpp logHandlerText.h)
+set(SSCAT_SRC
+    sscat.cpp
+    logHandlerJson.cpp
+    logHandlerJson.h
+    logHandlerText.cpp
+    logHandlerText.h
+    logHandlerValues.cpp
+    logHandlerValues.h)
 
 # CAT executable
 # =======================
