@@ -433,8 +433,8 @@ struct Stats {
 #define SSLOG_FNV_HASH_PRIME_  1099511628211ULL
 
 // Library version
-#define SSLOG_VERSION     "0.8.1"
-#define SSLOG_VERSION_NUM 801  // Monotonic number. 100 per version component. Official releases are muliple of 100
+#define SSLOG_VERSION     "0.8.2"
+#define SSLOG_VERSION_NUM 802  // Monotonic number. 100 per version component. Official releases are muliple of 100
 
 // Storage protocol version
 #define SSLOG_STORAGE_FORMAT_VERSION 1
