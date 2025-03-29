@@ -56,7 +56,7 @@ Then start logging!
 
 Optionally, the python reader module can be easily installed with `pypi`:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ shell
-python3 -m pip install sslogreader
+python3 -m pip install sslogread
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ## Benchmarks
