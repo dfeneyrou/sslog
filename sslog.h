@@ -809,7 +809,7 @@ class TextFormatter
     //  %J  Microseconds since start of the record
     //  %K  Nanoseconds  since start of the record
     //  %Q  end of line and multiline binary buffer dump
-    //  %q  ' (+ buffer of size N)' or nothing if empty
+    //  %q  ' (+ buffer[N])' or nothing if empty
     void format(char* outBuf, uint32_t outBufSize, clockNs_t timestampUtcNs, uint32_t level, const char* threadName, const char* category,
                 const char* logContent, const uint8_t* binaryBuffer, uint32_t binaryBufferSize, bool addEndOfLine)
     {
@@ -970,7 +970,7 @@ class TextFormatter
                     if (pEnd - p >= 12) { p += snprintf(p, pEnd - p, "%" PRIu64, timestampUtcNs - recordStartUtcNs); }
                     break;
                 case 'q':
-                    if (pEnd - p >= 29 && binaryBufferSize > 0) { p += snprintf(p, pEnd - p, " (+ buffer of size %u)", binaryBufferSize); }
+                    if (pEnd - p >= 29 && binaryBufferSize > 0) { p += snprintf(p, pEnd - p, " (+ buffer[%u])", binaryBufferSize); }
                     break;
                 case 'Q':
                     if (pEnd - p >= 130 && binaryBufferSize > 0) {
@@ -1056,6 +1056,14 @@ struct DataFile {
     clockTick_t endTick;
 };
 
+struct DeltaEncoding {
+    clockTick_t lastLogTimestampTick = 0;
+    uint32_t    lastLogFormatIdx     = 0;
+    uint32_t    lastLogCategoryIdx   = 0;
+    uint32_t    lastLogThreadId      = 0;
+    bool        doLogFullEncoding    = true;
+};
+
 // Forward declarations
 void
 stop();
@@ -1075,12 +1083,8 @@ inline struct GlobalContext {
     clockNs_t        utcSystemClockStartNs = 0ULL;  // System clock of the start of the session
     uint32_t         reinitCount           = 0;
 
-    // Delta encoding
-    clockTick_t lastLogTimestampTick = 0;
-    uint32_t    lastLogFormatIdx     = 0;
-    uint32_t    lastLogCategoryIdx   = 0;
-    uint32_t    lastLogThreadId      = 0;
-    bool        doLogFullEncoding[2] = {true, true};
+    // Delta encoding, context per buffer (standard & details)
+    DeltaEncoding deltaEncoding[2];
 
     // Configs
     Collector             collector;
@@ -1171,12 +1175,15 @@ inline struct GlobalContext {
         srand((unsigned)time(0));
         for (size_t i = 0; i < 8; ++i) { sessionId[i] = (uint8_t)(std::rand() >> 16); }
         lkupStringToIndex.clear();
-        lastLogTimestampTick = 0;  // 0 is the expected state at the start of a logging session
-        lastLogFormatIdx     = 0;
-        lastLogCategoryIdx   = 0;
-        lastLogThreadId      = 0;
-        stringUniqueId       = 0;
-        for (int bufNbr = 0; bufNbr < 2; ++bufNbr) { doLogFullEncoding[bufNbr] = true; }
+        stringUniqueId = 0;
+        for (int bufNbr = 0; bufNbr < 2; ++bufNbr) {
+            DeltaEncoding& de       = deltaEncoding[bufNbr];
+            de.lastLogTimestampTick = 0;  // 0 is the expected state at the start of a logging session
+            de.lastLogFormatIdx     = 0;
+            de.lastLogCategoryIdx   = 0;
+            de.lastLogThreadId      = 0;
+            de.doLogFullEncoding    = true;
+        }
         if (fileBaseHandle) { fclose(fileBaseHandle); }
         fileBaseHandle = 0;
         for (int bufNbr = 0; bufNbr < 2; ++bufNbr) {
@@ -1552,10 +1559,10 @@ logHeader(bool withLock, int argQty, uint32_t logAllArgsSize, Level level, hashS
     uint32_t formatIdx = 0;
     if (!gc.lkupStringToIndex.find(formatHash, formatIdx)) { formatIdx = addString(formatHash, format); }
 
-    uint16_t    flagType         = SSLOG_LEVEL_BASE + static_cast<uint16_t>(level);
+    uint16_t    flagType         = 0;
     uint32_t    headerSize       = 0;
     uint8_t*    buf              = nullptr;
-    int         bufNbr           = (level < gc.sink.storageLevel) ? 1 : 0;
+    int         bufNbr           = (level < gc.sink.storageLevel) ? 1 : 0;  // 0 = storage, 1 = details
     int         formatIdxBytes   = 0;
     int         categoryIdxBytes = 0;
     int         threadIdxBytes   = 0;
@@ -1566,11 +1573,12 @@ logHeader(bool withLock, int argQty, uint32_t logAllArgsSize, Level level, hashS
 
     // Loop until buffer resources are enough
     while (true) {
-        headerSize          = 2;  // The uint16_t flag
-        bool doFullEncoding = gc.doLogFullEncoding[bufNbr];
+        flagType          = SSLOG_LEVEL_BASE + static_cast<uint16_t>(level);
+        headerSize        = 2;  // The uint16_t flag
+        DeltaEncoding& de = gc.deltaEncoding[bufNbr];
 
         // Find out the required bytes quantity to store the formatIdx, compared to the previous one
-        uint32_t changedBits = doFullEncoding ? 0xFFFFFFFF : (formatIdx ^ gc.lastLogFormatIdx);
+        uint32_t changedBits = de.doLogFullEncoding ? 0xFFFFFFFF : (formatIdx ^ de.lastLogFormatIdx);
         formatIdxBytes       = 0;
         if (changedBits == 0) {
             flagType |= SSLOG_FORMAT_0_BYTES;
@@ -1587,7 +1595,7 @@ logHeader(bool withLock, int argQty, uint32_t logAllArgsSize, Level level, hashS
         headerSize += formatIdxBytes;
 
         // Find out the required bytes quantity to store the categoryIdx, compared to the previous one
-        changedBits      = doFullEncoding ? 0xFFFFFFFF : (categoryIdx ^ gc.lastLogCategoryIdx);
+        changedBits      = de.doLogFullEncoding ? 0xFFFFFFFF : (categoryIdx ^ de.lastLogCategoryIdx);
         categoryIdxBytes = 0;
         if (changedBits == 0) {
             flagType |= SSLOG_CATEGORY_0_BYTES;
@@ -1604,7 +1612,7 @@ logHeader(bool withLock, int argQty, uint32_t logAllArgsSize, Level level, hashS
         headerSize += categoryIdxBytes;
 
         // Find out the required bytes quantity to store the threadIdx, compared to the previous one
-        changedBits    = doFullEncoding ? 0xFFFFFFFF : (threadIdx ^ gc.lastLogThreadId);
+        changedBits    = de.doLogFullEncoding ? 0xFFFFFFFF : (threadIdx ^ de.lastLogThreadId);
         threadIdxBytes = 0;
         if (changedBits == 0) {
             flagType |= SSLOG_THREADIDX_0_BYTES;
@@ -1623,7 +1631,7 @@ logHeader(bool withLock, int argQty, uint32_t logAllArgsSize, Level level, hashS
         // Find out the required bytes quantity to store the (monotonic) date, compared to the previous one
         nowTick = getHiResClockTick();
         clockTick_t changedTickBits =
-            doFullEncoding ? 0xFFFFFFFFFFFFFFFFULL : (nowTick ^ gc.lastLogTimestampTick);  // XOR marks the bits which differ
+            de.doLogFullEncoding ? 0xFFFFFFFFFFFFFFFFULL : (nowTick ^ de.lastLogTimestampTick);  // XOR marks the bits which differ
         timestampBytes = 2;
         if ((changedTickBits & 0xFFFFFFFFFFFF0000ULL) == 0) {
             flagType |= SSLOG_TS_2_BYTES;
@@ -1671,11 +1679,12 @@ logHeader(bool withLock, int argQty, uint32_t logAllArgsSize, Level level, hashS
     }
 
     // Commit the incremental coding
-    gc.lastLogFormatIdx          = formatIdx;
-    gc.lastLogCategoryIdx        = categoryIdx;
-    gc.lastLogThreadId           = threadIdx;
-    gc.lastLogTimestampTick      = nowTick;
-    gc.doLogFullEncoding[bufNbr] = false;
+    DeltaEncoding& de       = gc.deltaEncoding[bufNbr];
+    de.lastLogFormatIdx     = formatIdx;
+    de.lastLogCategoryIdx   = categoryIdx;
+    de.lastLogThreadId      = threadIdx;
+    de.lastLogTimestampTick = nowTick;
+    de.doLogFullEncoding    = false;
     if (hasWaited) { ++gc.stats.delayedLogs; }
 
     // Write the header
@@ -1950,8 +1959,9 @@ createNewDataFile(clockNs_t utcSystemClockOriginNs, clockTick_t steadyClockOrigi
             return;
         }
         fwrite((void*)header, 1, headerSize, gc.fileDataHandle[1]);
-        gc.currentDetailedFileStartTick = getHiResClockTick();
-        filesWereWritten                = true;
+        gc.currentDetailedFileStartTick =
+            gc.dataBanks[gc.dataActiveBankNbr ^ 1].steadyClockOriginTick;  // Date of first log in first written bank
+        filesWereWritten = true;
     }
 
     if (filesWereWritten) {
@@ -2043,13 +2053,13 @@ periodicLogFlush(bool doForce)
 
     // Install the yet inactive bank as a new fresh active one
     std::unique_lock<std::mutex> lkLogging(gc.loggingLock);
-    nextDataActiveBank.offset[0]              = 0;
-    nextDataActiveBank.offset[1]              = 0;
-    nextDataActiveBank.steadyClockOriginTick  = getHiResClockTick();  // Snapshot before any events in the buffer
+    nextDataActiveBank.offset[0]             = 0;
+    nextDataActiveBank.offset[1]             = 0;
+    gc.deltaEncoding[0].doLogFullEncoding    = true;  // Force full encoding at start of each batch as they could be the start of a new file
+    gc.deltaEncoding[1].doLogFullEncoding    = true;
+    nextDataActiveBank.steadyClockOriginTick = getHiResClockTick();  // Snapshot before any events in the buffer
     nextDataActiveBank.utcSystemClockOriginNs = getUtcSystemClockNs();
     gc.dataActiveBankNbr                      = nextDataActiveBankNbr;
-    gc.doLogFullEncoding[0] = true;  // Force full encoding at start of each batch as they could be the start of a new file
-    gc.doLogFullEncoding[1] = true;
 
     // Log it if some saturation has been detected
     if (gc.isDataBufferSaturated.load() != 0) {

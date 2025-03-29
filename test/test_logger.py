@@ -68,7 +68,7 @@ int main()
 
     // 1KB buffers are logged to create large log files
     std::vector<uint8_t> buffer(1024);
-    for(int i=0; i<1024; ++i) buffer[i] = i;
+    for(int i=0; i<1024; ++i) buffer[i] = (uint8_t)i;
 
     for(int i=0; i<2000; ++i) {
          ssInfoBuffer("category", buffer.data(), buffer.size(), "text");
@@ -157,7 +157,7 @@ int main()
 
     // 1KB buffers are logged to create large log files
     std::vector<uint8_t> buffer(1024);
-    for(int i=0; i<1024; ++i) buffer[i] = i;
+    for(int i=0; i<1024; ++i) buffer[i] = (uint8_t)i;
 
     // Big strings are logged to saturate the buffer. They should be truncated
     std::string longValue(%d, 'A');
@@ -168,7 +168,7 @@ int main()
          // Regular logging of 200 logs (~200 KB) per second
          sslog::priv::testIncrementVirtualTimeMs(5);
 
-         // Force flush after each log to have consistent results
+         // Force flush to have consistent results
          // Required because the threading time is not virtualized
          if((i%%20)==0) { sslog::priv::forceFlush(); }
     }

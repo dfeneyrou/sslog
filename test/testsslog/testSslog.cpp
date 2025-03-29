@@ -100,6 +100,47 @@ allApisTask(int threadNbr, int loopQty)
     }
 }
 
+void
+testCrash(int* crashPtr)
+{
+    // Small buffers to saturate easily (for fast file split)
+    sslog::Collector collector;
+    collector.dataBufferBytes   = 16384;
+    collector.stringBufferBytes = 1024;
+    ssSetCollector(collector);
+
+    // Sink configuration with dynamic part
+    sslog::Sink sink;
+    sink.path                     = "sslogDb";
+    sink.consoleLevel             = sslog::Level::off;
+    sink.storageLevel             = sslog::Level::info;
+    sink.detailsLevel             = sslog::Level::trace;
+    sink.splitFileMaxBytes        = 10000;
+    sink.detailsBeforeAfterMinSec = 0;
+    ssSetSink(sink);
+
+    // 10KB buffers are logged to create large log files
+    std::vector<uint8_t> buffer(10000);
+    for (int i = 0; i < (int)buffer.size(); ++i) buffer[i] = (uint8_t)i;
+
+    for (int i = 0; i < 40; ++i) {
+        ssInfoBuffer("category", buffer.data(), buffer.size(), "text %d", i);
+        ssDebug("category", "Detailed text %d", i);
+
+        if (i == 20) {
+            // Crash. This should automatically trig the request for details
+            ssWarn("CRASH", "ARTIFICIAL CRASH NOW");
+            printf("Segmentation fault %d\n", *crashPtr);
+        }
+
+        // Force flush after each log to have consistent results
+        // Required because the threading time is not virtualized
+#ifndef SSLOG_DISABLE
+        sslog::priv::forceFlush();
+#endif
+    }
+}
+
 // =========================
 // Main
 // =========================
@@ -111,9 +152,10 @@ displayUsage(const char* programPath)
     printf("  'sslog' C++ logger test program\n");
     printf("\n");
     printf("  Parameter:\n");
-    printf("    'api' : Use the entirety of the logger API (testing)\n");
-    printf("    'mix' : Use a mix of different logs to create a more realistic logging session (compactness performance)\n");
-    printf("    'perf': Use repeating logs in loop (speed performance)\n");
+    printf("    'api'  : Use the entirety of the logger API (testing)\n");
+    printf("    'mix'  : Use a mix of different logs to create a more realistic logging session (compactness performance)\n");
+    printf("    'perf' : Use repeating logs in loop (speed performance)\n");
+    printf("    'crash': Artificially crash the program to test the stack trace logging + automatic request for details\n");
     printf("\n");
     printf("  Options to configure the program behavior:\n");
     printf("    '-t <1-9>      : Defines the quantity of threads\n");
@@ -124,7 +166,8 @@ int
 main(int argc, char** argv)
 {
     // Check the type of execution
-    bool doDisplayUsage = (argc <= 1 || (strcmp(argv[1], "perf") != 0 && strcmp(argv[1], "api") != 0 && strcmp(argv[1], "mix") != 0));
+    bool doDisplayUsage = (argc <= 1 || (strcmp(argv[1], "perf") != 0 && strcmp(argv[1], "api") != 0 && strcmp(argv[1], "mix") != 0 &&
+                                         strcmp(argv[1], "crash") != 0));
 
     // Get the options
     int threadQty = 1;
@@ -172,6 +215,8 @@ main(int argc, char** argv)
     }
 
     if (strcmp(argv[1], "perf") == 0) { testPerformance(threadQty, loopQty); }
+
+    if (strcmp(argv[1], "crash") == 0) { testCrash(nullptr); }
 
     return 0;
 }
