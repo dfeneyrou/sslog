@@ -49,7 +49,7 @@ using namespace sslogread;
 // Main
 // =========================
 
-enum class Mode { Help, ColorText, MonoText, Json, Infos, Values };
+enum class Mode : uint8_t { Help, ColorText, MonoText, Json, Infos, Values };
 
 bool
 parseParameters(int argc, char** argv, std::filesystem::path& logDirPath, Mode& mode, bool& withUtcTime, std::vector<Rule>& rules,
@@ -324,7 +324,7 @@ main(int argc, char** argv)
 
     else if (mode == Mode::Json) {
         LogHandlerJson handler(session, dateFormatter, withUtcTime);
-        if (!session.query(rules, [&handler](const LogStruct& log) { handler.notifyLog(log); }, errorMessage)) {
+        if (!session.query(rules, [&handler](int /*ruleIdx*/, const LogStruct& log) { handler.notifyLog(log); }, errorMessage)) {
             fprintf(stderr, "Error: %s\n", errorMessage.c_str());
             return 1;
         }
@@ -332,7 +332,7 @@ main(int argc, char** argv)
 
     else if (mode == Mode::Values) {
         LogHandlerValues handler(session, dateFormatter, withUtcTime, argNames, argSeparator);
-        if (!session.query(rules, [&handler](const LogStruct& log) { handler.notifyLog(log); }, errorMessage)) {
+        if (!session.query(rules, [&handler](int /*ruleIdx*/, const LogStruct& log) { handler.notifyLog(log); }, errorMessage)) {
             fprintf(stderr, "Error: %s\n", errorMessage.c_str());
             return 1;
         }
@@ -340,7 +340,7 @@ main(int argc, char** argv)
 
     else {
         LogHandlerText handler(session, consoleFormatter, withUtcTime, (mode == Mode::ColorText));
-        if (!session.query(rules, [&handler](const LogStruct& log) { handler.notifyLog(log); }, errorMessage)) {
+        if (!session.query(rules, [&handler](int /*ruleIdx*/, const LogStruct& log) { handler.notifyLog(log); }, errorMessage)) {
             fprintf(stderr, "Error: %s\n", errorMessage.c_str());
             return 1;
         }

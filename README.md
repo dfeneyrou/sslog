@@ -46,6 +46,7 @@ In including just one header file.
    - `sscat`: `cat`-like [tool](https://dfeneyrou.github.io/sslog/sscat.md.html) with filters and transforms
    - `libsslogread`: [C++ library](https://dfeneyrou.github.io/sslog/sslogread_cpp_api.md.html) for reading logs
    - Python `sslogread` module: [wrapper](https://dfeneyrou.github.io/sslog/sslogread_python_module.md.html) for libsslogread
+ - Support of UTC and local time
  - Linux & Windows support
 
 ## Install
@@ -53,7 +54,7 @@ In including just one header file.
 Copy and include the single header `sslog.h`. <br>
 Then start logging!
 
-The easiest way to install the python reader module is:
+Optionally, the python reader module can be easily installed with `pypi`:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ shell
 python3 -m pip install sslogreader
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

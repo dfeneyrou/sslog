@@ -159,7 +159,7 @@ session_query(SessionObject* self, PyObject* args)
                 strcmp(cKey, "thread") != 0 && strcmp(cKey, "format") != 0 && strcmp(cKey, "buffer_size_min") != 0 &&
                 strcmp(cKey, "buffer_size_max") != 0 && strcmp(cKey, "no_category") != 0 && strcmp(cKey, "no_thread") != 0 &&
                 strcmp(cKey, "no_format") != 0 && strcmp(cKey, "arguments") != 0) {
-                char tmpStr[128];
+                char tmpStr[256];
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4996)  // Disable Windows's secure API warnings on snprintf
@@ -227,7 +227,7 @@ session_query(SessionObject* self, PyObject* args)
     // Parse the log and get the raw output
     bool queryStatus = session->query(
         rules,
-        [outputList, session, &base64Output, &filledFormatBuffer](const sslogread::LogStruct& log) {
+        [outputList, session, &base64Output, &filledFormatBuffer](int /*ruleIdx*/, const sslogread::LogStruct& log) {
             PyObject* pyLog = PyStructSequence_New(LogTupleType);
             PyStructSequence_SetItem(pyLog, 0, PyUnicode_FromString(sslogread::LogSession::getLevelName(log.level)));
             PyStructSequence_SetItem(pyLog, 1, PyLong_FromLongLong(log.timestampUtcNs));

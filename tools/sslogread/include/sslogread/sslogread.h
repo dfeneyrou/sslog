@@ -97,7 +97,7 @@ class LogSession
     bool init(const std::filesystem::path& logDirPath, std::string& errorMessage);
 
     // Main service
-    bool query(const std::vector<Rule>& rules, const std::function<void(const LogStruct&)>& callback, std::string& errorMessage) const;
+    bool query(const std::vector<Rule>& rules, const std::function<void(int, const LogStruct&)>& callback, std::string& errorMessage) const;
 
     // Strings
     size_t      getIndexedStringQty() const { return _stringsStartOffsets.size(); }

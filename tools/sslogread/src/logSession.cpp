@@ -253,7 +253,8 @@ LogSession::init(const std::filesystem::path& logDirPath, std::string& errorMess
 }
 
 bool
-LogSession::query(const std::vector<Rule>& rules, const std::function<void(const LogStruct&)>& callback, std::string& errorMessage) const
+LogSession::query(const std::vector<Rule>& rules, const std::function<void(int, const LogStruct&)>& callback,
+                  std::string& errorMessage) const
 {
     // Prepare the filters (OR between them)
     std::vector<std::unique_ptr<Filter>> filters;
@@ -294,15 +295,18 @@ LogSession::query(const std::vector<Rule>& rules, const std::function<void(const
             bool       doChooseSecond = (data1.empty() || (!data2.empty() && data1.output.timestampUtcNs > data2.output.timestampUtcNs));
             LogStream* ls             = doChooseSecond ? &data2 : &data1;
 
+            // Filter
             bool doProcess = filters.empty();
-            for (const auto& f : filters) {
-                if (f->apply(ls)) {
+            int  ruleIdx   = 0;
+            while (ruleIdx < (int)filters.size()) {
+                if (filters[ruleIdx]->apply(ls)) {
                     doProcess = true;
                     break;
                 }
+                ++ruleIdx;
             }
 
-            if (doProcess) { callback(ls->output); }
+            if (doProcess) { callback(ruleIdx, ls->output); }
 
             ls->readNext();
         }

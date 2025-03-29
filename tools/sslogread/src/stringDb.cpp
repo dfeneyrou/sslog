@@ -225,7 +225,7 @@ LogSession::extractMetaInfos(std::string& errorMessage) const
 
     bool queryStatus = query(
         {},
-        [this, &flags, &minTimeNs, &maxTimeNs](const sslogread::LogStruct& log) {
+        [this, &flags, &minTimeNs, &maxTimeNs](int /*ruleIdx*/, const sslogread::LogStruct& log) {
             if (log.categoryIdx < flags.size()) { flags[log.categoryIdx] |= sslogread::FlagCategory; }
             if (log.threadIdx < flags.size()) { flags[log.threadIdx] |= sslogread::FlagThread; }
             if (log.formatIdx < flags.size()) { flags[log.formatIdx] |= sslogread::FlagFormat; }
