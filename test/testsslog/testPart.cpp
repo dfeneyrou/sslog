@@ -88,7 +88,7 @@ testPerformance(int threadQty, int loopQty)
     printf("                    Collection      Collection+Write\n");
 
 #define RUN_PERF_TEST(perfTask, paramQtyStr)                                                                                              \
-    std::filesystem::remove_all(sinkConfig.path, ec);                                                                                     \
+    SSLOG_FS_NAMESPACE::remove_all(sinkConfig.path, ec);                                                                                  \
     ssStart();                                                                                                                            \
     startCollectNs = GET_TIME(nanoseconds);                                                                                               \
     for (int threadNbr = 0; threadNbr < threadQty; ++threadNbr) { threads.push_back(std::thread(perfTask, loopQty / threadQty)); }        \

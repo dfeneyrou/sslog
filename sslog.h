@@ -176,7 +176,14 @@
 
 #endif  // ifndef SSLOG_DISABLE
 
+#ifndef SSLOG_EXPERIMENTAL_FILESYSTEM
 #include <filesystem>
+#define SSLOG_FS_NAMESPACE std::filesystem
+#else
+// For old gcc only
+#include <experimental/filesystem>
+#define SSLOG_FS_NAMESPACE std::experimental::filesystem
+#endif
 #include <functional>
 #include <vector>
 
@@ -433,8 +440,8 @@ struct Stats {
 #define SSLOG_FNV_HASH_PRIME_  1099511628211ULL
 
 // Library version
-#define SSLOG_VERSION     "0.8.2"
-#define SSLOG_VERSION_NUM 802  // Monotonic number. 100 per version component. Official releases are muliple of 100
+#define SSLOG_VERSION     "0.8.3a"
+#define SSLOG_VERSION_NUM 803  // Monotonic number. 100 per version component. Official releases are muliple of 100
 
 // Storage protocol version
 #define SSLOG_STORAGE_FORMAT_VERSION 1
@@ -1087,15 +1094,15 @@ inline struct GlobalContext {
     DeltaEncoding deltaEncoding[2];
 
     // Configs
-    Collector             collector;
-    Collector             newCollectorCfg;
-    std::atomic<int>      newCollectorCfgPresent{0};
-    Sink                  sink;
-    Sink                  newSinkCfg;
-    std::atomic<int>      newSinkCfgPresent{0};
-    std::atomic<int>      forceFlush{0};
-    Level                 minLoggingLevel = Level::trace;
-    std::filesystem::path pathname;
+    Collector                collector;
+    Collector                newCollectorCfg;
+    std::atomic<int>         newCollectorCfgPresent{0};
+    Sink                     sink;
+    Sink                     newSinkCfg;
+    std::atomic<int>         newSinkCfgPresent{0};
+    std::atomic<int>         forceFlush{0};
+    Level                    minLoggingLevel = Level::trace;
+    SSLOG_FS_NAMESPACE::path pathname;
 
     // Data collection
     uint8_t                 sessionId[8] = {0};
@@ -1206,8 +1213,8 @@ inline struct GlobalContext {
     void initSink()
     {
         // Store new config
-        std::filesystem::path oldPathPattern = sink.path;
-        sink                                 = newSinkCfg;
+        SSLOG_FS_NAMESPACE::path oldPathPattern = sink.path;
+        sink                                    = newSinkCfg;
         newSinkCfgPresent.store(0);
 
         // Some precomputations
@@ -1236,23 +1243,23 @@ inline struct GlobalContext {
 
             // Ensure that the folder exists
             std::error_code ec;
-            if (!std::filesystem::exists(pathname) && !std::filesystem::create_directory(pathname, ec)) {
+            if (!SSLOG_FS_NAMESPACE::exists(pathname) && !SSLOG_FS_NAMESPACE::create_directory(pathname, ec)) {
                 fprintf(stderr, "SSLOG error: unable to create the directory '%s': %s\n", pathname.string().c_str(), ec.message().c_str());
                 enabled = false;  // The logging service is fully disabled
                 return;
             }
 
             // Clean it from old files
-            std::filesystem::directory_iterator di(pathname, ec);
+            SSLOG_FS_NAMESPACE::directory_iterator di(pathname, ec);
             if (ec) {
                 fprintf(stderr, "SSLOG error: unable to access the directory '%s': %s\n", pathname.string().c_str(), ec.message().c_str());
                 enabled = false;
                 return;
             }
             for (auto const& de : di) {
-                if (de.is_regular_file() && (strncmp("data", de.path().filename().string().c_str(), 4) == 0 ||
-                                             strncmp("base", de.path().filename().string().c_str(), 4) == 0)) {
-                    std::filesystem::remove(de.path().string(), ec);
+                if (SSLOG_FS_NAMESPACE::is_regular_file(de) && (strncmp("data", de.path().filename().string().c_str(), 4) == 0 ||
+                                                                strncmp("base", de.path().filename().string().c_str(), 4) == 0)) {
+                    SSLOG_FS_NAMESPACE::remove(de.path().string(), ec);
                 }
             }
         }
@@ -1933,7 +1940,7 @@ createNewDataFile(clockNs_t utcSystemClockOriginNs, clockTick_t steadyClockOrigi
     if (gc.fileDataHandle[0] == nullptr && gc.sink.storageLevel < Level::off) {
         char numberedFilename[32];
         snprintf(numberedFilename, sizeof(numberedFilename), "data%06u.sslog", gc.dataFileNumber);
-        std::filesystem::path dataFilename = gc.pathname / numberedFilename;
+        SSLOG_FS_NAMESPACE::path dataFilename = gc.pathname / numberedFilename;
         if ((gc.fileDataHandle[0] = fopen(dataFilename.string().c_str(), "wb")) == nullptr) {
             fprintf(stderr, "SSLOG error: unable to open the log data file '%s'\n", dataFilename.string().c_str());
             if (gc.fileBaseHandle != nullptr) fclose(gc.fileBaseHandle);
@@ -1948,7 +1955,7 @@ createNewDataFile(clockNs_t utcSystemClockOriginNs, clockTick_t steadyClockOrigi
     if (gc.fileDataHandle[1] == nullptr && gc.sink.detailsLevel < gc.sink.storageLevel) {
         char numberedFilename[32];
         snprintf(numberedFilename, sizeof(numberedFilename), "data%06u.dtl.sslog", gc.dataFileNumber);
-        std::filesystem::path dataFilename = gc.pathname / numberedFilename;
+        SSLOG_FS_NAMESPACE::path dataFilename = gc.pathname / numberedFilename;
         if ((gc.fileDataHandle[1] = fopen(dataFilename.string().c_str(), "wb")) == nullptr) {
             fprintf(stderr, "SSLOG error: unable to open the log data file '%s'\n", dataFilename.string().c_str());
             if (gc.fileBaseHandle != nullptr) fclose(gc.fileBaseHandle);
@@ -2081,12 +2088,12 @@ cleanOldDataFiles(clockTick_t nowTick)
         std::error_code ec;
         char            numberedFilename[32];
         snprintf(numberedFilename, sizeof(numberedFilename), "data%06u.sslog", gc.existingDataFiles.front().fileNumber);
-        if (std::filesystem::exists(gc.pathname / numberedFilename) && !std::filesystem::remove(gc.pathname / numberedFilename, ec)) {
+        if (SSLOG_FS_NAMESPACE::exists(gc.pathname / numberedFilename) && !SSLOG_FS_NAMESPACE::remove(gc.pathname / numberedFilename, ec)) {
             fprintf(stderr, "SSLOG error: unable to remove the details file '%s': %s\n", (gc.pathname / numberedFilename).string().c_str(),
                     ec.message().c_str());
         }
         snprintf(numberedFilename, sizeof(numberedFilename), "data%06u.dtl.sslog", gc.existingDataFiles.front().fileNumber);
-        if (std::filesystem::exists(gc.pathname / numberedFilename) && !std::filesystem::remove(gc.pathname / numberedFilename, ec)) {
+        if (SSLOG_FS_NAMESPACE::exists(gc.pathname / numberedFilename) && !SSLOG_FS_NAMESPACE::remove(gc.pathname / numberedFilename, ec)) {
             fprintf(stderr, "SSLOG error: unable to remove the details file '%s': %s\n", (gc.pathname / numberedFilename).string().c_str(),
                     ec.message().c_str());
         }
@@ -2104,7 +2111,7 @@ cleanOldDetailedFiles(clockTick_t nowTick)
         std::error_code ec;
         char            numberedFilename[32];
         snprintf(numberedFilename, sizeof(numberedFilename), "data%06u.dtl.sslog", gc.detailedFilesToDelete.front().fileNumber);
-        if (std::filesystem::exists(gc.pathname / numberedFilename) && !std::filesystem::remove(gc.pathname / numberedFilename, ec)) {
+        if (SSLOG_FS_NAMESPACE::exists(gc.pathname / numberedFilename) && !SSLOG_FS_NAMESPACE::remove(gc.pathname / numberedFilename, ec)) {
             fprintf(stderr, "SSLOG error: unable to remove the details file '%s': %s\n", (gc.pathname / numberedFilename).string().c_str(),
                     ec.message().c_str());
         }
