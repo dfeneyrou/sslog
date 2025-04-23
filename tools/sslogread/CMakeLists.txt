@@ -68,5 +68,5 @@ target_link_libraries(sslogread sslog ${SSLOGREAD_ZSTD_LIBS} Threads::Threads)
 # Library installation
 # ====================
 file(GLOB headerfiles "${CMAKE_CURRENT_SOURCE_DIR}/include/sslogread/*.h")
-install(FILES ${headerfiles} DESTINATION include)
+install(FILES ${headerfiles} DESTINATION include/sslogread)
 install(TARGETS sslogread ARCHIVE DESTINATION lib)

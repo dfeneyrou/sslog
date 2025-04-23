@@ -79,15 +79,13 @@ if(NOT DEFINED Python_FIND_FRAMEWORK)
   set(Python_FIND_FRAMEWORK "LAST")
 endif()
 
-set(CMAKE_INSTALL_PREFIX "$ENV{HOME}")
-
 # System flags
 # ============
 
 # Register our package finders
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 
-# Multithreading is used (both client and server applications)
+# Multithreading is used (both logger and reader applications)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
@@ -97,6 +95,7 @@ find_package(Threads REQUIRED)
 # Build the logging library
 add_library(sslog INTERFACE)
 target_include_directories(sslog INTERFACE ./)
+install(FILES ${PROJECT_SOURCE_DIR}/sslog.h DESTINATION include)
 
 # Build the reader library
 add_subdirectory(tools/sslogread)
