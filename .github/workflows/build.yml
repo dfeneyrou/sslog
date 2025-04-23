@@ -19,7 +19,7 @@ jobs:
       run: |
           mkdir build
           cd    build
-          cmake .. -DSSLOG_BUILD_PYTHON_READER=ON
+          cmake .. -DSSLOG_BUILD_PYTHON_READER=ON -DCMAKE_INSTALL_PREFIX=$HOME
           make -j $(nproc)
 
     - name: Install python packages
