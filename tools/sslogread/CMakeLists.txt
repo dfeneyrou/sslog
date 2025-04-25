@@ -33,7 +33,7 @@ if(MSVC)
 
 else()
   # Linux
-  add_compile_options(-Wall -Wextra)
+  add_compile_options(-Wall -Wextra -Wno-sign-conversion -Werror)
 
   if(zstd_FOUND)
     add_definitions(-DWITH_ZSTD=1)

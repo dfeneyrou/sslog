@@ -22,7 +22,8 @@
 
 #include <chrono>
 
-#define GET_TIME(unit) std::chrono::duration_cast<std::chrono::unit>(std::chrono::steady_clock::now().time_since_epoch()).count()
+#define GET_TIME(unit) \
+    ((uint64_t)std::chrono::duration_cast<std::chrono::unit>(std::chrono::steady_clock::now().time_since_epoch()).count())
 
 void
 testPerformance(int threadQty, int loopQty);

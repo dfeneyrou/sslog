@@ -188,7 +188,7 @@
 #include <vector>
 
 // This line is unfortunately the only way found to remove the zero-arguments-variadic-macro and the
-// prohibited-anonymous-structs warnings with GCC when the build is using the option -Wpedantic
+// prohibited-anonymous-structs warnings with GCC when the build is using the option -pedantic
 #if !defined(_MSC_VER)
 #pragma GCC system_header
 #endif

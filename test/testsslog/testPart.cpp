@@ -82,7 +82,7 @@ testPerformance(int threadQty, int loopQty)
     uint64_t                 startCollectNs = 0, endCollectNs = 0, endSendingNs = 0;
     std::error_code          ec;
     std::vector<std::thread> threads;
-    threads.reserve(threadQty);
+    threads.reserve((uint32_t)threadQty);
     loopQty *= 1000000;
     ssStop();
     printf("                    Collection      Collection+Write\n");

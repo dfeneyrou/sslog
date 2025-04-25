@@ -121,7 +121,7 @@ testCrash(int* crashPtr)
 
     // 10KB buffers are logged to create large log files
     std::vector<uint8_t> buffer(10000);
-    for (int i = 0; i < (int)buffer.size(); ++i) buffer[i] = (uint8_t)i;
+    for (uint32_t i = 0; i < (uint32_t)buffer.size(); ++i) buffer[i] = (uint8_t)i;
 
     for (int i = 0; i < 40; ++i) {
         ssInfoBuffer("category", buffer.data(), buffer.size(), "text %d", i);

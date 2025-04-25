@@ -42,7 +42,7 @@ if(MSVC)
                                # applicable only from C++17
   add_compile_options(/EHsc)
 else()
-  add_compile_options(-Wall -Wextra -pedantic)
+  add_compile_options(-Wall -Wextra -pedantic -Werror -Wsign-conversion)
 
 endif()
 
