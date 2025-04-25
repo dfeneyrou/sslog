@@ -19,7 +19,7 @@ file(
   DEPS
   CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_SOURCE_DIR}/../python/setup.py
-  ${CMAKE_CURRENT_SOURCE_DIR}/../sslog.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../lib/include/sslog.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../tools/sslogread/include/*.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../tools/sslogread/src/*.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../tools/sslogread/src/*.h

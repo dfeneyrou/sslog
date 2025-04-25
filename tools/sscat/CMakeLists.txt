@@ -58,7 +58,13 @@ set(SSCAT_SRC
     logHandlerValues.cpp
     logHandlerValues.h)
 
+if(NOT TARGET sslog::sslogread)
+  find_package(sslog REQUIRED)
+endif()
+
 # CAT executable
 # =======================
 add_executable(sscat ${SSCAT_SRC})
-target_link_libraries(sscat sslogread sslog ${STACKTRACE_LIBS} Threads::Threads)
+target_link_libraries(sscat PRIVATE sslog::sslog sslog::sslogread ${STACKTRACE_LIBS}
+                                    Threads::Threads)
+install(TARGETS sscat RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT sscat_Runtime)

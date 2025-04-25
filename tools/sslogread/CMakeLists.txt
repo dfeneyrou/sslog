@@ -61,12 +61,42 @@ set(SSLOGREAD_SRC
 # Library definition
 # ==================
 add_library(sslogread STATIC ${SSLOGREAD_SRC})
-target_include_directories(sslogread INTERFACE include)
+add_library(sslog::sslogread ALIAS sslogread)
+
+if(NOT TARGET sslog::sslog)
+  find_package(sslog)
+endif()
+
+target_include_directories(sslogread PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                                            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_include_directories(sslogread PRIVATE include "${SSLOGREAD_ZSTD_INCLUDE}")
-target_link_libraries(sslogread sslog ${SSLOGREAD_ZSTD_LIBS} Threads::Threads)
+target_link_libraries(sslogread PUBLIC sslog::sslog ${SSLOGREAD_ZSTD_LIBS} Threads::Threads)
 
 # Library installation
 # ====================
 file(GLOB headerfiles "${CMAKE_CURRENT_SOURCE_DIR}/include/sslogread/*.h")
-install(FILES ${headerfiles} DESTINATION include/sslogread)
-install(TARGETS sslogread ARCHIVE DESTINATION lib)
+set_target_properties(sslogread PROPERTIES PUBLIC_HEADER "${headerfiles}")
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(sslogread-config-version.cmake VERSION 1.0.0
+                                 COMPATIBILITY SameMajorVersion)
+
+include(GNUInstallDirs)
+
+install(
+  TARGETS sslogread
+  EXPORT sslogreadTargets
+  INCLUDES
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT sslogread_Runtime
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT sslogread_Runtime
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT sslogread_Development
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/sslogread COMPONENT sslogread_Development)
+
+install(EXPORT sslogreadTargets FILE sslogread-targets.cmake NAMESPACE sslog::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/sslogread COMPONENT sslogread_Development)
+
+export(TARGETS sslogread NAMESPACE sslog:: FILE sslogread-targets.cmake)
+
+install(FILES sslogread-config.cmake ${CMAKE_CURRENT_BINARY_DIR}/sslogread-config-version.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/sslogread COMPONENT sslogread_Development)

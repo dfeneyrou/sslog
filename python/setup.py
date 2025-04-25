@@ -65,14 +65,14 @@ external_source_files = [
 external_libinclude_files = ["tools/sslogread/include/sslogread/sslogread.h", "tools/sslogread/include/sslogread/utils.h"]
 isSdist = (sys.argv[1] == "sdist")  # Building from the already made source package
 
-if os.path.isfile("../../sslog.h"):
+if os.path.isfile("../../lib/include/sslog.h"):
     # Rebuild the sources so that a source package can be formed
     # Drawback: the Python target is rebuilt each time...
     pathlib.Path("sslogread").mkdir(exist_ok=True)
     pathlib.Path("sslogread/sslogread").mkdir(exist_ok=True)
     for f in external_source_files:
         shutil.copyfile("../../"+f, "sslogread/%s" % os.path.split(f)[1])
-    shutil.copyfile("../../sslog.h", "sslogread/sslog.h")
+    shutil.copyfile("../../lib/include/sslog.h", "sslogread/sslog.h")
     shutil.copyfile("../../tools/sslogread/include/sslogread/sslogread.h", "sslogread/sslogread/sslogread.h")
     shutil.copyfile("../../tools/sslogread/include/sslogread/utils.h", "sslogread/sslogread/utils.h")
     shutil.copyfile("../../python/README.md", "README.md")

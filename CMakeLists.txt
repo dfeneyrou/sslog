@@ -3,6 +3,7 @@ project(sslog VERSION 1.0.0 DESCRIPTION "Speedy Structured Logger")
 
 # Options
 option(SSLOG_BUILD_TESTSSLOG "Build the C++ example program" ON)
+option(SSLOG_BUILD_TOOLS "Build the sslog read library and sscat program" ON)
 option(SSLOG_BUILD_PYTHON_READER "Build the python reader interface" OFF)
 
 # Policies
@@ -92,16 +93,15 @@ find_package(Threads REQUIRED)
 # projects
 # ========
 
-# Build the logging library
-add_library(sslog INTERFACE)
-target_include_directories(sslog INTERFACE ./)
-install(FILES ${PROJECT_SOURCE_DIR}/sslog.h DESTINATION include)
+add_subdirectory(lib)
 
-# Build the reader library
-add_subdirectory(tools/sslogread)
+if(SSLOG_BUILD_TOOLS)
+  # Build the reader library
+  add_subdirectory(tools/sslogread)
 
-# Build the sscat tool
-add_subdirectory(tools/sscat)
+  # Build the sscat tool
+  add_subdirectory(tools/sscat)
+endif()
 
 # Build the python reader library
 if(SSLOG_BUILD_PYTHON_READER)
