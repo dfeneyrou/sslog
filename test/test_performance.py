@@ -63,9 +63,9 @@ def _evaluate_perf_program(eval_content, flags, loop=3, code=PERF_CODE):
     for i in range(loop):
         start_sec = time.time()
         if sys.platform == "win32":
-            run_cmd(["cl.exe", "test_performance.cpp", "/std:c++17", "-I", "..\\..", "/EHs", "/Fea.exe"] + flags)
+            run_cmd(["cl.exe", "test_performance.cpp", "/std:c++17", "-I", "..\\..\\lib\\include", "/EHs", "/Fea.exe"] + flags)
         else:
-            run_cmd(["g++", "test_performance.cpp", "-std=c++17", "-I", "../.."] + flags)
+            run_cmd(["g++", "test_performance.cpp", "-std=c++17", "-I", "../../lib/include"] + flags)
         build_time_sec = min(build_time_sec, time.time() - start_sec)
     if sys.platform == "win32":
         prog_name = "a.exe"

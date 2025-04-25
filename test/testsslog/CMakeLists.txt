@@ -54,4 +54,4 @@ set(TESTSSLOG_SRC testSslog.cpp testPart.cpp testPart.h)
 # Test program executable
 # =======================
 add_executable(testsslog ${TESTSSLOG_SRC})
-target_link_libraries(testsslog sslog ${STACKTRACE_LIBS} Threads::Threads)
+target_link_libraries(testsslog PRIVATE sslog::sslog ${STACKTRACE_LIBS} Threads::Threads)

@@ -24,10 +24,10 @@ def compile_and_run_fileinfos(descr, code, doCompress=False):
     # Build it
     if sys.platform == "win32":
         prog_name = "a.exe"
-        run_cmd(["cl.exe", "test_behavior.cpp", "/std:c++17", "-I", "..\\..", "/EHs", "/Fea.exe"])
+        run_cmd(["cl.exe", "test_behavior.cpp", "/std:c++17", "-I", "..\\..\\lib\\include", "/EHs", "/Fea.exe"])
     else:
         prog_name = "./a.out"
-        run_cmd(["g++", "test_behavior.cpp", "-std=c++17", "-g", "-I", "../.."])
+        run_cmd(["g++", "test_behavior.cpp", "-std=c++17", "-g", "-I", "../../lib/include"])
 
     # Execute
     run_cmd([prog_name])
@@ -126,10 +126,10 @@ def compile_and_run_stdout(descr, code):
     # Build it
     if sys.platform == "win32":
         prog_name = "a.exe"
-        run_cmd(["cl.exe", "test_behavior.cpp", "/std:c++17", "-I", "..\\..", "/EHs", "/Fea.exe"])
+        run_cmd(["cl.exe", "test_behavior.cpp", "/std:c++17", "-I", "..\\..\\lib\\include", "/EHs", "/Fea.exe"])
     else:
         prog_name = "./a.out"
-        run_cmd(["g++", "test_behavior.cpp", "-std=c++17", "-g", "-I", "../.."])
+        run_cmd(["g++", "test_behavior.cpp", "-std=c++17", "-g", "-I", "../../lib/include"])
 
     # Execute
     res = run_cmd([prog_name])
