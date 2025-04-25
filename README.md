@@ -48,6 +48,7 @@ In including just one header file.
    - Python `sslogread` module: [wrapper](https://dfeneyrou.github.io/sslog/sslogread_python_module.md.html) for libsslogread
  - Support of UTC and local time
  - Linux & Windows support
+ - Extensive [documentation](https://dfeneyrou.github.io/sslog/index.html)
 
 ## Install
 
