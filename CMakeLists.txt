@@ -57,7 +57,8 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Type of build" FORCE)
 endif()
 message(
-  "Build type: ${CMAKE_BUILD_TYPE}   (change with -DCMAKE_BUILD_TYPE=<Debug|Release|RelWithDebInfo|MinSizeRel|Asan|Tsan>)"
+  STATUS
+    "Build type: ${CMAKE_BUILD_TYPE}   (change with -DCMAKE_BUILD_TYPE=<Debug|Release|RelWithDebInfo|MinSizeRel|Asan|Tsan>)"
 )
 if(CMAKE_BUILD_TYPE STREQUAL "Tsan")
   set(CUSTOM_FLAGS "-DSSLOG_STACKTRACE=0")

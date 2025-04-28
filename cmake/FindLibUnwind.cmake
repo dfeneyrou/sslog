@@ -13,7 +13,7 @@ endif()
 # Find library
 find_library(LibUnwind_LIBRARY NAMES unwind)
 if(NOT LibUnwind_LIBRARY)
-    MESSAGE(STATUS "failed to find libunwind library")
+    message(STATUS "failed to find libunwind library")
   endif()
 
 # Some caching
