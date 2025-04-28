@@ -611,6 +611,18 @@ getLevelName(Level l)
     return levelStrings[sslogMin((uint32_t)l, (uint32_t)(SSLOG_LEVEL_QTY - 1))];
 }
 
+inline Level
+getLevelFromName(const std::string& name)
+{
+    if (name == "trace") { return Level::trace; }
+    if (name == "debug") { return Level::debug; }
+    if (name == "info") { return Level::info; }
+    if (name == "warn" || name == "warning") { return Level::warn; }
+    if (name == "error") { return Level::error; }
+    if (name == "critical") { return Level::critical; }
+    return Level::off;
+}
+
 // Simple flat hashmap with linear open addressing.
 // Requirements: simple, fast, with few allocations, and specialized for our string->index problem:
 //   no deletion, key=hash, hash is never zero, hash is 'well spread enough' to avoid clusters,
