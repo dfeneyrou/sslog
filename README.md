@@ -270,7 +270,7 @@ if(!session->query({}, [session](const sslogread::LogStruct& log) {
 
                  // Format the string with arguments (=custom vsnprintf with our argument list, see below)
                  char filledFormat[1024];
-                 sslogread::vsnprintf(filledFormat, sizeof(filledFormat), session->getIndexedString(log.formatIdx), log.args, session);
+                 sslogread::vsnprintfLog(filledFormat, sizeof(filledFormat), session->getIndexedString(log.formatIdx), log.args, session);
 
                  // Some simple display on console (there are better ways)
                  printf("[timestampUtcNs=%lu  thread=%s  category=%s  buffer=%s] %s\n",
