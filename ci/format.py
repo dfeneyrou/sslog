@@ -29,6 +29,8 @@ import sys
 import glob
 import subprocess
 
+FileExclusionPatterns = ['/build/', "/third_party/"]
+
 
 def shell(command, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
     return subprocess.run(
@@ -48,8 +50,7 @@ def main():
 
     # Helper function
     def exclude(fileList):
-        exclusion = ['/build/']  # , '/external/']
-        return [f for f in fileList if not [1 for e in exclusion if e in f]]
+        return [f for f in fileList if not [1 for e in FileExclusionPatterns if e in f]]
 
     # Find C++ files and format them
     cppFiles = exclude(glob.glob("%s/**/*.cpp" % sourceDir, recursive=True) +

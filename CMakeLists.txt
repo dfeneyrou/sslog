@@ -102,6 +102,9 @@ if(SSLOG_BUILD_TOOLS)
 
   # Build the sscat tool
   add_subdirectory(tools/sscat)
+
+  # Build the ssview tool
+  add_subdirectory(tools/ssview)
 endif()
 
 # Build the python reader library
