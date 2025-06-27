@@ -12,7 +12,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libunwind-dev libdw-dev libzstd-dev zstd
+        sudo apt-get install -y xorg-dev libunwind-dev libdw-dev libzstd-dev zstd
         python -m pip install --upgrade pip setuptools wheel build
 
     - name: Build components
