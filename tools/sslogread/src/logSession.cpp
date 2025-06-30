@@ -26,7 +26,6 @@
 #include <zstd.h>  // presumes zstd library is installed
 #endif
 
-#include "sslog.h"
 #include "sslogread/sslogread.h"
 
 namespace sslogread

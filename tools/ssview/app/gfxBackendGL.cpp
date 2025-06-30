@@ -8,6 +8,7 @@
 
 // Internal
 #include "bs.h"
+#include "bsVec.h"
 #include "gfxBackend.h"
 #include "glHelper.h"
 
@@ -36,7 +37,7 @@ static const GLchar* guiFragmentShaderSrc =
     "layout (location = 0) out vec4 Out_Color;\n"
     "void main()\n"
     "{\n"
-    "   Out_Color = vec4(Frag_Color.xyz, Frag_Color.w*texture(Texture, Frag_UV.st));\n"
+    "    Out_Color = Frag_Color * texture(Texture, Frag_UV.st);\n"
     "}\n";
 
 // Rendering context
@@ -55,6 +56,12 @@ static struct {
 void
 vwBackendInit(void)
 {
+    // Set maximum texture size (for ImGui dynamic fonts)
+    ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+    GLint            maxTextureSize;
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
+    platform_io.Renderer_TextureMaxWidth = platform_io.Renderer_TextureMaxHeight = (int)maxTextureSize;
+
     // Allocate the font texture (fully initialized later)
     glGenTextures(1, &vwGlCtx.fontTextureId);
     glBindTexture(GL_TEXTURE_2D, vwGlCtx.fontTextureId);
@@ -82,6 +89,73 @@ vwBackendInit(void)
     glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
 }
 
+void
+vwBackendDestroyTexture(ImTextureData* tex)
+{
+    GLuint gl_tex_id = (GLuint)(intptr_t)tex->TexID;
+    glDeleteTextures(1, &gl_tex_id);
+    tex->SetTexID(ImTextureID_Invalid);
+    tex->SetStatus(ImTextureStatus_Destroyed);
+    GL_CHECK();
+}
+
+void
+vwBackendUpdateTexture(ImTextureData* tex)
+{
+    if (tex->GetStatus() == ImTextureStatus_WantCreate) {
+        // Create and upload new texture to graphics system
+        // IMGUI_DEBUG_LOG("UpdateTexture #%03d: WantCreate %dx%d\n", tex->UniqueID, tex->Width, tex->Height);
+        asserted(tex->TexID == 0 && tex->BackendUserData == nullptr);
+        asserted(tex->Format == ImTextureFormat_RGBA32);
+        const void* pixels        = tex->GetPixels();
+        GLuint      gl_texture_id = 0;
+
+        // Upload texture to graphics system
+        // (Bilinear sampling is required by default. Set 'io.Fonts->Flags |= ImFontAtlasFlags_NoBakedLines' or
+        // 'style.AntiAliasedLinesUseTex = false' to allow point/nearest sampling)
+        GLint last_texture;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &last_texture);
+        glGenTextures(1, &gl_texture_id);
+        glBindTexture(GL_TEXTURE_2D, gl_texture_id);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->Width, tex->Height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+
+        // Store identifiers
+        tex->SetTexID((ImTextureID)(intptr_t)gl_texture_id);
+        tex->SetStatus(ImTextureStatus_OK);
+
+        // Restore state
+        glBindTexture(GL_TEXTURE_2D, last_texture);
+        GL_CHECK();
+    } else if (tex->GetStatus() == ImTextureStatus_WantUpdates) {
+        // Update selected blocks. We only ever write to textures regions which have never been used before!
+        // This backend choose to use tex->Updates[] but you can use tex->UpdateRect to upload a single region.
+        GLint last_texture;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &last_texture);
+
+        GLuint gl_tex_id = (GLuint)(intptr_t)tex->TexID;
+        glBindTexture(GL_TEXTURE_2D, gl_tex_id);
+
+        bsVec<uint8_t> tempBuffer;
+        for (ImTextureRect& r : tex->Updates) {
+            const int src_pitch = r.w * tex->BytesPerPixel;
+            tempBuffer.resize(r.h * src_pitch);
+            uint8_t* out_p = tempBuffer.data();
+            for (int y = 0; y < r.h; y++, out_p += src_pitch) { memcpy(out_p, tex->GetPixelsAt(r.x, r.y + y), src_pitch); }
+            IM_ASSERT(out_p == tempBuffer.data() + tempBuffer.size());
+            glTexSubImage2D(GL_TEXTURE_2D, 0, r.x, r.y, r.w, r.h, GL_RGBA, GL_UNSIGNED_BYTE, tempBuffer.data());
+        }
+        tex->SetStatus(ImTextureStatus_OK);
+        glBindTexture(GL_TEXTURE_2D, last_texture);  // Restore state
+        GL_CHECK();
+    } else if (tex->GetStatus() == ImTextureStatus_WantDestroy && tex->UnusedFrames > 0) {
+        vwBackendDestroyTexture(tex);
+    }
+}
+
 bool
 vwBackendDraw(void)
 {
@@ -90,6 +164,15 @@ vwBackendDraw(void)
     vwGlCtx.frameBufferWidth  = (int)(drawData->DisplaySize.x * drawData->FramebufferScale.x);
     vwGlCtx.frameBufferHeight = (int)(drawData->DisplaySize.y * drawData->FramebufferScale.y);
     if (vwGlCtx.frameBufferWidth == 0 || vwGlCtx.frameBufferHeight == 0) return false;
+
+    // Catch up with texture updates. Most of the times, the list will have 1 element with an OK status, aka nothing to do.
+    // (This almost always points to ImGui::GetPlatformIO().Textures[] but is part of ImDrawData to allow overriding or disabling texture
+    // updates).
+    if (drawData->Textures != nullptr) {
+        for (ImTextureData* tex : *drawData->Textures) {
+            if (tex->GetStatus() != ImTextureStatus_OK) { vwBackendUpdateTexture(tex); }
+        }
+    }
 
     // Backup GL state
     // vwGlBackupState backup;
@@ -182,31 +265,19 @@ vwCaptureScreen(int* width, int* height, uint8_t** buffer)
 void
 vwBackendInstallFont(const void* fontData, int fontDataSize, int fontSize)
 {
-    // Some config
     ImGuiIO& io = ImGui::GetIO();
     io.Fonts->Clear();
-    io.Fonts->AddFontFromMemoryCompressedTTF(fontData, fontDataSize, (float)fontSize);
-
-    // Build texture atlas
-    unsigned char* pixels;
-    int            width, height;
-    io.Fonts->GetTexDataAsAlpha8(&pixels, &width, &height);
-
-    // Upload texture to graphics system
-    glBindTexture(GL_TEXTURE_2D, vwGlCtx.fontTextureId);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, pixels);
-    io.Fonts->TexID = vwGlCtx.fontTextureId;  // Store our identifier
-    GL_CHECK();
+    io.FontDefault = io.Fonts->AddFontFromMemoryCompressedTTF(fontData, fontDataSize, (float)fontSize);
 }
 
 void
 vwBackendUninit(void)
 {
     vwGlCtx.guiGlProgram.deinstall();
-    if (vwGlCtx.fontTextureId) {
-        glDeleteTextures(1, &vwGlCtx.fontTextureId);
-        ImGui::GetIO().Fonts->TexID = 0;
-        vwGlCtx.fontTextureId       = 0;
+
+    // Destroy all textures
+    for (ImTextureData* tex : ImGui::GetPlatformIO().Textures) {
+        if (tex->RefCount == 1) { vwBackendDestroyTexture(tex); }
     }
 }
 

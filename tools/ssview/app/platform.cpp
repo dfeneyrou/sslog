@@ -104,6 +104,7 @@ vwPlatform::vwPlatform(const bsString& filename) : _doExit(0), _isVisible(0), _d
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
     io.DisplaySize                = ImVec2((float)_displayWidth, (float)_displayHeight);
     io.DisplayFramebufferScale    = ImVec2(1.f, 1.f);  // High DPI is handled with increased font size and Imgui spatial constants
     io.IniFilename                = 0;                 // Disable config file save
@@ -201,6 +202,7 @@ vwPlatform::redraw()
 
     // Compute the vertices
     ImGui::NewFrame();
+
     _main->draw();
     ImGui::Render();
     _lastUpdateDurationUs = bsGetClockUs() - currentTimeUs;

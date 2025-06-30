@@ -40,7 +40,6 @@
 #include "logHandlerJson.h"
 #include "logHandlerText.h"
 #include "logHandlerValues.h"
-#include "sslog.h"
 #include "sslogread/sslogread.h"
 
 using namespace sslogread;

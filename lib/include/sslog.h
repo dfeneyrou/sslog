@@ -2777,6 +2777,8 @@ getStats()
 // Automatic instantiation
 // =======================================================================================================
 
+#ifndef SSLOG_NO_BOOTSTRAP  // Undocumented flag. Use with caution
+
 struct Bootstrap {
     Bootstrap()
     {
@@ -2792,6 +2794,8 @@ struct Bootstrap {
 };
 
 inline Bootstrap boostrap;
+
+#endif  // ifndef SSLOG_NO_BOOTSTRAP
 
 }  // namespace priv
 

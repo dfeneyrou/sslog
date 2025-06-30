@@ -6,6 +6,8 @@
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# @TODO: Make a switch for windows
+
 find_package(OpenGL REQUIRED)
 find_package(X11 REQUIRED)
 

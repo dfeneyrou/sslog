@@ -28,6 +28,7 @@
 #include <string>
 #include <vector>
 
+#define SSLOG_NO_BOOTSTRAP
 #include "sslog.h"
 
 namespace sslogread

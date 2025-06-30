@@ -90,7 +90,7 @@ vwMain::drawLog(LogView& lv)
     // const bool isWindowHovered = ImGui::IsWindowHovered();
 
     float maxOffsetX  = winX;
-    float y           = winY;                                          // - curScrollPosY;
+    float y           = winY;
     float yEnd        = winY + ImGui::GetWindowSize().y + fontHeight;  // Skip the invisible log part after the window end
     int   logStartIdx = curScrollPosY / fontHeight;                    // Skip the invisible log part before the window start
 
@@ -121,6 +121,7 @@ vwMain::drawLog(LogView& lv)
     }
 
     ImGui::SetCursorPos(ImVec2(maxOffsetX - winX + curScrollPosX, lv.cachedLogs.size() * fontHeight));
+    ImGui::Dummy(ImVec2(0, 0));  // Need this dummy item after setting the cursor position and extending the window
     ImGui::EndChild();
 }
 

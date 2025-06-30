@@ -15,7 +15,22 @@ file(GLOB ASSERTED_SRC CONFIGURE_DEPENDS *.h)
 add_library(asserted STATIC ${ASSERTED_SRC})
 add_library(ssview::asserted ALIAS asserted)
 
+# Enable the stacktrace feature if the dependencies are found 
+if(WIN32)
+  message(STATUS "Stacktrace enabled for ssview")
+  target_compile_options(asserted PUBLIC "-DASSERTED_WITH_STACKTRACE=1")
+else(WIN32)
+  find_package(LibUnwind)
+  find_package(LibDw)
+  if(LibUnwind_FOUND AND LibDw_FOUND)
+    message(STATUS "Stacktrace enabled for ssview")
+    target_compile_options(asserted PUBLIC "-DASSERTED_WITH_STACKTRACE=1")
+    set(STACKTRACE_LIBS ${LibUnwind_LIBRARY} ${LibDw_LIBRARY})
+  endif()
+endif(WIN32)
+
 target_include_directories(asserted PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+target_link_libraries(asserted PUBLIC ${STACKTRACE_LIBS})
 
 # Library installation
 # ====================

@@ -618,6 +618,7 @@ assertedCrash(const char* message)
 
     // Log and display the call stack
 #if ASSERTED_WITH_STACKTRACE == 1
+    printf("WITH STACKTRACE\n");
     ASSERTED_MESSAGE(ASSERTED_COLOR_BLUE "  Stacktrace:\n" ASSERTED_COLOR_RESET, false);  // Standard
     assertedPriv::crashLogStackTrace();
 #endif
