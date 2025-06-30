@@ -335,6 +335,18 @@ vwPlatform::eventKeyPressedOrReleased(os::Keycode keycode, os::KeyModState kms, 
         case os::KC_A:
             io.AddKeyEvent(ImGuiKey_A, pressState);
             break;
+        case os::KC_Down:
+            io.AddKeyEvent(ImGuiKey_DownArrow, pressState);
+            break;
+        case os::KC_Up:
+            io.AddKeyEvent(ImGuiKey_UpArrow, pressState);
+            break;
+        case os::KC_PageDown:
+            io.AddKeyEvent(ImGuiKey_PageDown, pressState);
+            break;
+        case os::KC_PageUp:
+            io.AddKeyEvent(ImGuiKey_PageUp, pressState);
+            break;
         case os::KC_Escape:
             io.AddKeyEvent(ImGuiKey_Escape, pressState);
             break;

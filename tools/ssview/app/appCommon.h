@@ -1,6 +1,10 @@
 #pragma once
 
-// Helpers
+#include <cstdint>
+
+// Constants
+// =========
+
 constexpr ImU32 uWhite      = IM_COL32(255, 255, 255, 255);
 constexpr ImU32 uBlack      = IM_COL32(0, 0, 0, 255);
 constexpr ImU32 uYellow     = IM_COL32(255, 192, 64, 255);
@@ -26,3 +30,23 @@ constexpr ImU32 ColorRelu    = IM_COL32(72, 38, 34, 255);
 constexpr ImU32 ColorMaxPool = IM_COL32(55, 79, 55, 255);
 constexpr ImU32 ColorConcat  = IM_COL32(81, 65, 60, 255);
 constexpr ImU32 ColorDropOut = IM_COL32(67, 69, 98, 255);
+
+constexpr int TIME_FORMAT_SECOND = 0;  // @CHANGE Turn it into enum class?
+constexpr int TIME_FORMAT_HHMMSS = 1;
+constexpr int TIME_FORMAT_QTY    = 2;
+
+// Helpers
+// =======
+int
+getFormattedTimeStringCharQty(int timeFormat);
+
+const char*
+getFormattedTimeString(int64_t ns, int timeFormat);
+
+const char*
+getNiceDuration(int64_t ns, int64_t displayRangeNs = 0, int bank = 0);
+
+// Configure the docking location for the next window to be displayed
+// The parameters controls the choice of the location: large or tall window.
+void
+selectBestDockLocation(bool bigWidth, bool bigHeight);

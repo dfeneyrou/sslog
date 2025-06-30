@@ -38,6 +38,7 @@ class vwMain
     std::atomic<Phase> _phase{Phase::InitFont};
     std::atomic<int>   _phaseCompletionFlag{0};
     std::thread        _workerThread;
+    int64_t            _mouseTimeNs = 0.;
 
     vwMain(const vwMain& other);  // To please static analyzers
     vwMain& operator=(vwMain other);
@@ -67,6 +68,8 @@ class vwMain
         int            maxCategoryLength = 0;
         bool           isDataDirty       = true;
         bool           isNew             = true;
+        int64_t        rangeSelStartNs   = -1;
+        float          rangeSelStartY    = 0.;
         bsVec<LogElem> cachedLogs;
     };
     void                 addLogView(uint32_t id);
