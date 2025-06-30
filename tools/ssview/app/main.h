@@ -66,6 +66,7 @@ class vwMain
         uint64_t       originUtcNs;
         int            maxCategoryLength = 0;
         bool           isDataDirty       = true;
+        bool           isNew             = true;
         bsVec<LogElem> cachedLogs;
     };
     void                 addLogView(uint32_t id);

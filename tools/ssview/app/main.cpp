@@ -215,7 +215,8 @@ vwMain::draw()
     // Create the global window
     ImGuiIO&    io    = ImGui::GetIO();
     const ImU32 flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
-                        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBringToFrontOnFocus;
+                        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoNavFocus |
+                        ImGuiWindowFlags_NoBringToFrontOnFocus;
     ImGui::SetNextWindowSize(io.DisplaySize);
     ImGui::SetNextWindowPos(ImVec2(0, 0));
     if (!ImGui::Begin("App window", NULL, flags | ImGuiWindowFlags_MenuBar)) {
@@ -226,23 +227,6 @@ vwMain::draw()
     // Docking
     ImGuiID mainDockspaceId = ImGui::GetID("MainDockSpace");
     ImGui::DockSpace(mainDockspaceId, ImVec2(0.0f, 0.0f), DOCKSPACE_FLAGS);
-    #if 0
-    if(!ImGui::DockBuilderGetNode(mainDockspaceId)) {
-        ImGui::DockBuilderAddNode(mainDockspaceId, ImGuiDockNodeFlags_DockSpace); // Add root node
-        ImGui::DockSpace(mainDockspaceId, ImVec2(0., 0.), DOCKSPACE_FLAGS);
-        ImGui::DockBuilderSetNodeSize(mainDockspaceId, ImGui::GetIO().DisplaySize);
-    }
-    else if(_doEnterFullScreen) {
-        // Create the "full screen" layout
-        ImGui::DockBuilderRemoveNodeChildNodes(mainDockspaceId); // Remove root and all children
-        ImGui::DockSpace(mainDockspaceId, ImVec2(0., 0.), DOCKSPACE_FLAGS);
-        ImGui::DockBuilderSetNodeSize(mainDockspaceId, ImGui::GetIO().DisplaySize);
-    }
-    else {
-        // Case no change
-        ImGui::DockSpace(mainDockspaceId, ImVec2(0.0f, 0.0f), DOCKSPACE_FLAGS);
-    }
-#endif
 
     // Draw all windows
     drawMainMenuBar();
