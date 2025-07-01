@@ -263,14 +263,6 @@ vwCaptureScreen(int* width, int* height, uint8_t** buffer)
 }
 
 void
-vwBackendInstallFont(const void* fontData, int fontDataSize, int fontSize)
-{
-    ImGuiIO& io = ImGui::GetIO();
-    io.Fonts->Clear();
-    io.FontDefault = io.Fonts->AddFontFromMemoryCompressedTTF(fontData, fontDataSize, (float)fontSize);
-}
-
-void
 vwBackendUninit(void)
 {
     vwGlCtx.guiGlProgram.deinstall();

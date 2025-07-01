@@ -113,6 +113,7 @@ vwPlatform::vwPlatform(const bsString& filename) : _doExit(0), _isVisible(0), _d
     io.ConfigInputTextCursorBlink = false;
     configureStyle();
     ImGui::GetStyle().ScaleAllSizes(_dpiScale);
+    io.FontDefault = io.Fonts->AddFontFromMemoryCompressedTTF(vwGetFontDataRobotoMedium(), vwGetFontDataSizeRobotoMedium(), 1.);
 
     // Install callbacks
     io.SetClipboardTextFn = vwSetClipboardText;
@@ -121,7 +122,6 @@ vwPlatform::vwPlatform(const bsString& filename) : _doExit(0), _isVisible(0), _d
 
     // Initialize the graphical backend
     vwBackendInit();
-    _newFontSizeToInstall = 16;  // @FIXME Hardcoded at the moment
 
     // Creation of the main application
     _main = new vwMain(this, filename);
@@ -192,9 +192,6 @@ vwPlatform::redraw()
             WRITE_DIRTY_COUNT(dirtyRedrawCount, bounceCount);
     }
 
-    // Change font, if needed
-    installNewFonts();
-
     // Update inputs for ImGui
     ImGuiIO& io          = ImGui::GetIO();
     io.DisplaySize       = ImVec2((float)_displayWidth, (float)_displayHeight);
@@ -216,17 +213,6 @@ bool
 vwPlatform::captureScreen(int* width, int* height, uint8_t** buffer)
 {
     return vwCaptureScreen(width, height, buffer);
-}
-
-void
-vwPlatform::installNewFonts()
-{
-    // Change font, if needed
-    if (_newFontSizeToInstall > 0) {
-        vwBackendInstallFont(vwGetFontDataRobotoMedium(), vwGetFontDataSizeRobotoMedium(),
-                             (int)bsRound((double)(_dpiScale * _newFontSizeToInstall)));
-        _newFontSizeToInstall = -1;
-    }
 }
 
 void

@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include "imgui.h"
+
 // Constants
 // =========
 
@@ -34,6 +36,10 @@ constexpr ImU32 ColorDropOut = IM_COL32(67, 69, 98, 255);
 constexpr int TIME_FORMAT_SECOND = 0;  // @CHANGE Turn it into enum class?
 constexpr int TIME_FORMAT_HHMMSS = 1;
 constexpr int TIME_FORMAT_QTY    = 2;
+
+constexpr int FontSizeDefault = 16;
+constexpr int FontSizeMin     = 10;
+constexpr int FontSizeMax     = 40;
 
 // Helpers
 // =======

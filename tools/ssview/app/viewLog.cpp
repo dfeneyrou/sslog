@@ -119,13 +119,13 @@ vwMain::drawLog(LogView& lv)
 
         // Display the date
         float       offsetX = winX + textPixMargin - curScrollPosX;
-        const char* timeStr = getFormattedTimeString(ci.timestampUtcNs, _timeFormat);
+        const char* timeStr = getFormattedTimeString(ci.timestampUtcNs, _settingsView.timeFormat);
         DRAWLIST->AddText(ImVec2(offsetX, y), uWhite, timeStr);
         int changedOffset = 0;
         while (timeStr[changedOffset] && timeStr[changedOffset] == lastDateStr[changedOffset]) ++changedOffset;
         DRAWLIST->AddText(ImVec2(offsetX, y), uGrey128, timeStr, timeStr + changedOffset);
         snprintf(lastDateStr, sizeof(lastDateStr), "%s", timeStr);
-        offsetX += charWidth * (float)getFormattedTimeStringCharQty(_timeFormat);
+        offsetX += charWidth * (float)getFormattedTimeStringCharQty(_settingsView.timeFormat);
 
         // Display the category
         DRAWLIST->AddText(ImVec2(offsetX, y), uWhite, ci.category.c_str());

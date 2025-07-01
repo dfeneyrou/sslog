@@ -26,12 +26,10 @@ class vwPlatform : public os::Handler
     void   quit(void) { _doExit.store(1); }
     bsUs_t getLastUpdateDuration(void) const { return _lastUpdateDurationUs; }
     bsUs_t getLastRenderingDuration(void) const { return _lastRenderingDurationUs; }
-    void   setNewFontSize(int fontSize) { _newFontSizeToInstall = fontSize; }
     bsUs_t getLastMouseMoveDurationUs(void) const { return bsGetClockUs() - _lastMouseMoveTimeUs; }
     int    getDisplayWidth(void) const { return _displayWidth; }
     int    getDisplayHeight(void) const { return _displayHeight; }
     bool   captureScreen(int* width, int* height, uint8_t** buffer);
-    void   installNewFonts();
 
     // Event handling
     bool redraw();
@@ -70,9 +68,8 @@ class vwPlatform : public os::Handler
     std::atomic<int>      _doExit;
     std::atomic<int>      _isVisible;
     std::atomic<uint64_t> _dirtyRedrawCount;
-    vwMain*               _main                 = 0;
-    int                   _newFontSizeToInstall = -1;
-    bsUs_t                _lastMouseMoveTimeUs  = 0;
+    vwMain*               _main                = 0;
+    bsUs_t                _lastMouseMoveTimeUs = 0;
 
     // ImGui
     int    _displayWidth            = -1;

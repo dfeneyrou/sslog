@@ -64,7 +64,7 @@ static const unsigned int icon_data[1492 / 4] = {
 };
 
 // ==============================================================================================
-// Menu bar
+// Base application windows
 // ==============================================================================================
 
 void
@@ -87,6 +87,10 @@ vwMain::drawMainMenuBar()
 
         if (ImGui::BeginMenu("Windows")) {
             if (ImGui::MenuItem("New log view")) { addLogView(getId()); }
+
+            ImGui::Separator();
+            ImGui::MenuItem("Settings", NULL, &_settingsView.isOpen);
+
             ImGui::EndMenu();
         }
 
@@ -164,6 +168,61 @@ vwMain::drawAbout()
     ImGui::End();
 }
 
+void
+vwMain::drawSettings(void)
+{
+    constexpr float sliderWidth     = 150.f;
+    static int      draggedFontSize = -1;
+    float           titleWidth      = ImGui::CalcTextSize("Date format").x + 0.3f * sliderWidth;
+
+    SettingsView& sv = _settingsView;
+
+    if (!sv.isOpen) { return; }
+    if (!sv.uniqueId == 0) {
+        sv.uniqueId = getId();
+        selectBestDockLocation(true, false);
+    }
+
+    char tmpStr[128];
+    snprintf(tmpStr, sizeof(tmpStr), "Settings###%d", _settingsView.uniqueId);
+    if (!ImGui::Begin(tmpStr, &sv.isOpen, ImGuiWindowFlags_NoCollapse)) {
+        draggedFontSize = -1;
+        ImGui::End();
+        return;
+    }
+
+    if (ImGui::BeginTable("##tableSettings", 2)) {
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, titleWidth);
+
+        // Font size
+        ImGui::TableNextColumn();
+        ImGui::Text("Font size");
+        ImGui::TableNextColumn();
+        if (draggedFontSize < 0) draggedFontSize = _settingsView.fontSize;
+        ImGui::SetNextItemWidth(sliderWidth);
+        ImGui::SliderInt("##Font size", &draggedFontSize, FontSizeMin, FontSizeMax, "%d", ImGuiSliderFlags_ClampOnInput);
+        if (draggedFontSize >= 0 && !ImGui::IsMouseDown(0)) {
+            if (draggedFontSize != _settingsView.fontSize) { _settingsView.fontSize = draggedFontSize; }
+            draggedFontSize = -1;
+        }
+
+        // Date format
+        ImGui::TableNextColumn();
+        ImGui::Text("Date format");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The format of the date used in Text, Log and Search views.");
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        ImGui::PushItemWidth(sliderWidth);
+        ImGui::Combo("##DateFormat", &sv.timeFormat, "ss.ns\0hh:mm:ss.ns\0\0");
+
+        ImGui::PopItemWidth();
+
+        ImGui::EndTable();
+    }
+
+    ImGui::End();
+}
+
 // ==============================================================================================
 // Main application
 // ==============================================================================================
@@ -212,6 +271,8 @@ vwMain::dirty()
 void
 vwMain::draw()
 {
+    ImGui::PushFont(nullptr, _settingsView.fontSize);
+
     // Create the global window
     ImGuiIO&    io    = ImGui::GetIO();
     const ImU32 flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
@@ -231,6 +292,7 @@ vwMain::draw()
     // Draw all windows
     drawMainMenuBar();
     drawAbout();
+    drawSettings();
 
     switch (_phase) {
         case Phase::WaitForFilename:
@@ -278,4 +340,6 @@ vwMain::draw()
     }
 
     ImGui::End();  // End of global window
+
+    ImGui::PopFont();
 }

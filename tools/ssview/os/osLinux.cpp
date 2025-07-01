@@ -221,7 +221,7 @@ createWindow(const char* windowTitle, const char* configName, float ratioLeft, f
                m.primary ? " primary" : "");
     }
 
-    int usedMonitorId = 0;  // @TODO Make dynamically switchable
+    int usedMonitorId = 1;  // @TODO Make dynamically switchable
     XMoveWindow(gGlob.xDisplay, gGlob.windowHandle, xMonitors[usedMonitorId].x, xMonitors[usedMonitorId].y);
 
     XTextProperty textprop;

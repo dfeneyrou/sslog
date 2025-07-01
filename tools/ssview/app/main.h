@@ -11,6 +11,7 @@
 #include "sslogread/utils.h"
 
 // Internal
+#include "appCommon.h"
 #include "bs.h"
 #include "bsString.h"
 #include "bsTime.h"
@@ -22,7 +23,7 @@ class vwPlatform;
 // Helpers
 #define DRAWLIST ImGui::GetWindowDrawList()
 
-class vwMain
+class vwMain  // @RENAME
 {
    public:
     // Constructor & destructor
@@ -32,6 +33,7 @@ class vwMain
 
     // Application
     void draw();
+    int  getFontSize(void) { return _settingsView.fontSize; }
 
    private:
     enum class Phase : int { InitFont, WaitForFilename, InitiateFileLoading, LoadingFile, Active };
@@ -46,12 +48,13 @@ class vwMain
     void drawMainMenuBar();
     void drawHelp();
     void drawAbout();
+    void drawSettings();
 
     // Other shared methods
     int  getDisplayWidth();
     int  getDisplayHeight();
     void dirty();  // Force several frame of redrawing
-    int  getId(void) { return _uniqueId++; }
+    int  getId(void) { return _generatorUniqueId++; }
 
     void openHelpTooltip(int uniqueId, const char* tooltipId);
     void displayHelpText(const char* helpStr);
@@ -81,11 +84,20 @@ class vwMain
     vwPlatform*           _platform = 0;
     bsString              _filename;
     sslogread::LogSession _logSession;
-    int                   _timeFormat = 1;
-    uint32_t              _uniqueId   = 0;
+    uint32_t              _generatorUniqueId = 1;
 
-    // Window list and layout
+    // About
     bool _showAbout = false;
+
+    // Settings
+    struct SettingsView {
+        uint32_t uniqueId = 0;
+        bool     isOpen   = false;
+        // Settings
+        int timeFormat = TIME_FORMAT_HHMMSS;
+        int fontSize   = FontSizeDefault;
+    };
+    SettingsView _settingsView;
 
     // File dialogs
     vwFileDialog* _fileDialogLoadLogs = nullptr;
