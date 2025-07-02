@@ -59,6 +59,7 @@ class vwMain  // @RENAME
     void openHelpTooltip(int uniqueId, const char* tooltipId);
     void displayHelpText(const char* helpStr);
     void displayHelpTooltip(int uniqueId, const char* tooltipId, const char* helpStr);
+    bool loadSession();
 
     struct LogElem {
         uint64_t    timestampUtcNs;
@@ -66,8 +67,7 @@ class vwMain  // @RENAME
         std::string message;
     };
     struct LogView {
-        uint32_t       uniqueId = 0;
-        uint64_t       originUtcNs;
+        uint32_t       uniqueId          = 0;
         int            maxCategoryLength = 0;
         bool           isDataDirty       = true;
         bool           isNew             = true;
@@ -81,10 +81,15 @@ class vwMain  // @RENAME
     void                 prepareLogData(LogView& lv);
     std::vector<LogView> _logViews;
 
-    vwPlatform*           _platform = 0;
+    vwPlatform* _platform          = 0;
+    uint32_t    _generatorUniqueId = 1;
+
     bsString              _filename;
     sslogread::LogSession _logSession;
-    uint32_t              _generatorUniqueId = 1;
+    os::Date              _originDate;
+    int64_t               _originUtcNs    = 0;
+    int64_t               _dayOriginUtcNs = 0;
+    int64_t               _tzOffsetNs     = 0;
 
     // About
     bool _showAbout = false;
@@ -94,8 +99,9 @@ class vwMain  // @RENAME
         uint32_t uniqueId = 0;
         bool     isOpen   = false;
         // Settings
-        int timeFormat = TIME_FORMAT_HHMMSS;
-        int fontSize   = FontSizeDefault;
+        TimeFormat timeFormat = TimeFormat::HhMmSsNanosecond;
+        bool       useUtc     = false;
+        int        fontSize   = FontSizeDefault;
     };
     SettingsView _settingsView;
 

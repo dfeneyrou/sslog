@@ -21,29 +21,26 @@ vwMain::prepareLogData(LogView& lv)
     lv.maxCategoryLength = 1;
 
     // Build the filtering rules
-    bool                         isFirst = true;
     std::string                  errorMessage;
     std::vector<sslogread::Rule> rules;
 
     // Collect the logs
     if (!_logSession.query(
             rules,
-            [this, &lv, &isFirst](int /*ruleIdx*/, const sslogread::LogStruct& log) {
+            [this, &lv](int /*ruleIdx*/, const sslogread::LogStruct& log) {
                 // Format the string with arguments (=custom vsnprintf with our argument list, see below)
                 char filledFormat[1024];
                 sslogread::vsnprintfLog(filledFormat, sizeof(filledFormat), _logSession.getIndexedString(log.formatIdx), log.args,
                                         &_logSession);
 
                 // Update statistics
-                if (isFirst) {
-                    lv.originUtcNs = log.timestampUtcNs;
-                    isFirst        = false;
-                }
                 int categoryWidth = ImGui::CalcTextSize(_logSession.getIndexedString(log.categoryIdx)).x;
                 if (categoryWidth > lv.maxCategoryLength) lv.maxCategoryLength = categoryWidth;
 
                 // Store
-                lv.cachedLogs.push_back({log.timestampUtcNs - lv.originUtcNs, _logSession.getIndexedString(log.categoryIdx), filledFormat});
+                lv.cachedLogs.push_back({log.timestampUtcNs - _originUtcNs, _logSession.getIndexedString(log.categoryIdx), filledFormat});
+
+                return true;
             },
             errorMessage)) {
         fprintf(stderr, "Error: %s\n", errorMessage.c_str());
@@ -105,10 +102,12 @@ vwMain::drawLog(LogView& lv)
     const float mouseX          = ImGui::GetMousePos().x;
     const float mouseY          = ImGui::GetMousePos().y;
 
-    float   maxOffsetX          = winX;
-    float   y                   = winY;
-    float   yEnd                = winY + ImGui::GetWindowSize().y + fontHeight;  // Skip the invisible log part after the window end
-    int     logStartIdx         = curScrollPosY / fontHeight;                    // Skip the invisible log part before the window start
+    float   maxOffsetX     = winX;
+    float   y              = winY;
+    float   yEnd           = winY + ImGui::GetWindowSize().y + fontHeight;  // Skip the invisible log part after the window end
+    int     logStartIdx    = curScrollPosY / fontHeight;                    // Skip the invisible log part before the window start
+    int64_t dayOriginUtcNs = _dayOriginUtcNs + (_settingsView.useUtc ? -_tzOffsetNs : 0);
+
     int64_t newMouseTimeNs      = -1;
     int64_t mouseTimeBestTimeNs = -1;
     float   mouseTimeBestY      = -1.;
@@ -119,7 +118,7 @@ vwMain::drawLog(LogView& lv)
 
         // Display the date
         float       offsetX = winX + textPixMargin - curScrollPosX;
-        const char* timeStr = getFormattedTimeString(ci.timestampUtcNs, _settingsView.timeFormat);
+        const char* timeStr = getFormattedTimeString(ci.timestampUtcNs, _settingsView.timeFormat, dayOriginUtcNs);
         DRAWLIST->AddText(ImVec2(offsetX, y), uWhite, timeStr);
         int changedOffset = 0;
         while (timeStr[changedOffset] && timeStr[changedOffset] == lastDateStr[changedOffset]) ++changedOffset;

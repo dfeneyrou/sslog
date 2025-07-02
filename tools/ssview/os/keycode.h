@@ -47,13 +47,11 @@ enum Keycode {
     KC_LControl,
     KC_LShift,
     KC_LAlt,
-    KC_LSystem,   // The left OS specific key: window (Windows and Linux), apple
-                  // (MacOS X), ...
+    KC_LSystem,   // The left OS specific key: window (Windows and Linux), apple (MacOS X), ...
     KC_RControl,  // The right Control key
     KC_RShift,    // The right Shift key
     KC_RAlt,      // The right Alt key
-    KC_RSystem,   // The right OS specific key: window (Windows and Linux), apple
-                  // (MacOS X), ...
+    KC_RSystem,   // The right OS specific key: window (Windows and Linux), apple (MacOS X), ...
     KC_Menu,      // The Menu key
     KC_LBracket,  // The [ key
     KC_RBracket,  // The ] key

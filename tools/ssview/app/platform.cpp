@@ -333,6 +333,12 @@ vwPlatform::eventKeyPressedOrReleased(os::Keycode keycode, os::KeyModState kms, 
         case os::KC_PageUp:
             io.AddKeyEvent(ImGuiKey_PageUp, pressState);
             break;
+        case os::KC_Add:
+            io.AddKeyEvent(ImGuiKey_KeypadAdd, pressState);
+            break;
+        case os::KC_Subtract:
+            io.AddKeyEvent(ImGuiKey_KeypadSubtract, pressState);
+            break;
         case os::KC_Escape:
             io.AddKeyEvent(ImGuiKey_Escape, pressState);
             break;

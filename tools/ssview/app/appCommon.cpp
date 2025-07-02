@@ -9,42 +9,56 @@
 #include "imgui_internal.h"  // For the DockBuilder API (alpha) + title bar tooltip
 
 int
-getFormattedTimeStringCharQty(int timeFormat)
+getFormattedTimeStringCharQty(TimeFormat timeFormat)
 {
-    constexpr int timeStrCharQtyArray[TIME_FORMAT_QTY] = {17 + 2, 21 + 2};  // 2 char of margin
-    asserted(timeFormat < TIME_FORMAT_QTY, timeFormat);
-    return timeStrCharQtyArray[timeFormat];
+    // 2 char of margin
+    constexpr int timeStrCharQtyArray[(int)TimeFormat::Qty] = {17 + 2, 13 + 2, 21 + 2, 17 + 2};
+    int           timeFormatInt                             = (int)timeFormat;
+    asserted(timeFormatInt < (int)TimeFormat::Qty, timeFormatInt, (int)TimeFormat::Qty);
+    return timeStrCharQtyArray[timeFormatInt];
 }
 
 const char*
-getFormattedTimeString(int64_t ns, int timeFormat)
+getFormattedTimeString(int64_t ns, TimeFormat timeFormat, int64_t dayOriginUtcNs)
 {
     static char outBuf[64];
-    if (timeFormat == TIME_FORMAT_HHMMSS) {
-        snprintf(outBuf, sizeof(outBuf), "%02d:%02d:%02d.%03d_%03d_%03d", (int)(ns / 3600000000000LL), (int)((ns / 60000000000LL) % 60),
-                 (int)((ns / 1000000000LL) % 60), (int)((ns / 1000000LL) % 1000), (int)((ns / 1000LL) % 1000), (int)(ns % 1000));
-    } else {
+    if (timeFormat == TimeFormat::Nanosecond) {
         snprintf(outBuf, sizeof(outBuf), "%d.%03d_%03d_%03ds", (int)(ns / 1000000000LL), (int)((ns / 1000000LL) % 1000),
                  (int)((ns / 1000LL) % 1000), (int)(ns % 1000));
+    } else if (timeFormat == TimeFormat::Microsecond) {
+        snprintf(outBuf, sizeof(outBuf), "%d.%03d_%03d", (int)(ns / 1000000000LL), (int)((ns / 1000000LL) % 1000),
+                 (int)((ns / 1000LL) % 1000));
+    } else if (timeFormat == TimeFormat::HhMmSsNanosecond) {
+        ns += dayOriginUtcNs;
+        if (ns < 0) ns += 24 * 3600000000000LL;  // + 24h, to avoid negative number due to timezone
+        snprintf(outBuf, sizeof(outBuf), "%02d:%02d:%02d.%03d_%03d_%03d", (int)(ns / 3600000000000LL) % 24,
+                 (int)((ns / 60000000000LL) % 60), (int)((ns / 1000000000LL) % 60), (int)((ns / 1000000LL) % 1000),
+                 (int)((ns / 1000LL) % 1000), (int)(ns % 1000));
+    } else if (timeFormat == TimeFormat::HhMmSsMicrosecond) {
+        ns += dayOriginUtcNs;
+        if (ns < 0) ns += 24 * 3600000000000LL;
+        snprintf(outBuf, sizeof(outBuf), "%02d:%02d:%02d.%03d_%03d", (int)(ns / 3600000000000LL), (int)((ns / 60000000000LL) % 60),
+                 (int)((ns / 1000000000LL) % 60), (int)((ns / 1000000LL) % 1000), (int)((ns / 1000LL) % 1000));
+    } else {
+        asserted(false, "Unhandled time format", (int)timeFormat);
     }
+
     return outBuf;
 }
 
 const char*
-getNiceDuration(int64_t ns, int64_t displayRangeNs, int bank)
+getNiceDuration(int64_t ns, int64_t displayRangeNs)
 {
-    static char outBuf1[32];
-    static char outBuf2[32];
-    char*       outBuf = (bank == 0) ? outBuf1 : outBuf2;
+    static char outBuf[32];
     if (displayRangeNs <= 0) displayRangeNs = ns;
     if (displayRangeNs < 1000)
-        snprintf(outBuf, sizeof(outBuf1), "%" PRId64 " ns", ns);
+        snprintf(outBuf, sizeof(outBuf), "%" PRId64 " ns", ns);
     else if (displayRangeNs < 1000000)
-        snprintf(outBuf, sizeof(outBuf1), "%.2f µs", 0.001 * ns);
+        snprintf(outBuf, sizeof(outBuf), "%.2f µs", 0.001 * ns);
     else if (displayRangeNs < 1000000000)
-        snprintf(outBuf, sizeof(outBuf1), "%.2f ms", 0.000001 * ns);
+        snprintf(outBuf, sizeof(outBuf), "%.2f ms", 0.000001 * ns);
     else
-        snprintf(outBuf, sizeof(outBuf1), "%.2f s", 0.000000001 * ns);
+        snprintf(outBuf, sizeof(outBuf), "%.2f s", 0.000000001 * ns);
     return outBuf;
 }
 

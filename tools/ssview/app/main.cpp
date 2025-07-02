@@ -171,14 +171,14 @@ vwMain::drawAbout()
 void
 vwMain::drawSettings(void)
 {
-    constexpr float sliderWidth     = 150.f;
-    static int      draggedFontSize = -1;
-    float           titleWidth      = ImGui::CalcTextSize("Date format").x + 0.3f * sliderWidth;
+    static int  draggedFontSize = -1;
+    const float sliderWidth     = ImGui::CalcTextSize("UTC").x * 5.f;  // Arbitrary size
+    const float titleWidth      = ImGui::CalcTextSize("UTC date (else localtime)").x + 0.25f * sliderWidth;
 
     SettingsView& sv = _settingsView;
 
     if (!sv.isOpen) { return; }
-    if (!sv.uniqueId == 0) {
+    if (sv.uniqueId == 0) {
         sv.uniqueId = getId();
         selectBestDockLocation(true, false);
     }
@@ -194,6 +194,27 @@ vwMain::drawSettings(void)
     if (ImGui::BeginTable("##tableSettings", 2)) {
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, titleWidth);
 
+        // UTC or local time
+        ImGui::TableNextColumn();
+        ImGui::Text("UTC date (else localtime)");
+        ImGui::TableNextColumn();
+        ImGui::Checkbox("##UTC usage", &_settingsView.useUtc);
+
+        // Date format
+        ImGui::TableNextColumn();
+        ImGui::Text("Date format");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The format of the date used in Text, Log and Search views.");
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        ImGui::PushItemWidth(sliderWidth);
+        int timeFormatInt = (int)sv.timeFormat;
+        if (ImGui::Combo("##DateFormat", &timeFormatInt, "ss.ns\0ss.µs\0hh:mm:ss.ns\0hh:mm:ss.µs\0\0")) {
+            sv.timeFormat = TimeFormat{timeFormatInt};
+        }
+        ImGui::Spacing();
+        ImGui::Spacing();
+        ImGui::Spacing();
+
         // Font size
         ImGui::TableNextColumn();
         ImGui::Text("Font size");
@@ -205,15 +226,6 @@ vwMain::drawSettings(void)
             if (draggedFontSize != _settingsView.fontSize) { _settingsView.fontSize = draggedFontSize; }
             draggedFontSize = -1;
         }
-
-        // Date format
-        ImGui::TableNextColumn();
-        ImGui::Text("Date format");
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The format of the date used in Text, Log and Search views.");
-        ImGui::TableNextColumn();
-        ImGui::AlignTextToFramePadding();
-        ImGui::PushItemWidth(sliderWidth);
-        ImGui::Combo("##DateFormat", &sv.timeFormat, "ss.ns\0hh:mm:ss.ns\0\0");
 
         ImGui::PopItemWidth();
 
@@ -268,6 +280,40 @@ vwMain::dirty()
     _platform->notifyDrawDirty();
 }
 
+bool
+vwMain::loadSession()
+{
+    if (!_logSession.init(_filename.toChar(), _fileLoadErrorMsg)) { return false; }
+
+    // Get the time zone offset compared to UTC
+    time_t    now = time(NULL);
+    struct tm lcl = *localtime(&now);
+    struct tm gmt = *gmtime(&now);
+    _tzOffsetNs   = (int64_t)(lcl.tm_hour - gmt.tm_hour) * 3600000000000LL;
+
+    // Get the log origin
+    std::vector<sslogread::Rule> rules;
+
+    // Collect the logs and stop after the first message
+    if (!_logSession.query(
+            rules,
+            [this](int /*ruleIdx*/, const sslogread::LogStruct& log) {
+                _originUtcNs             = log.timestampUtcNs;
+                time_t     originDateSec = (time_t)((_originUtcNs + _tzOffsetNs) / 1000000000LL);
+                struct tm* t             = gmtime(&originDateSec);
+                asserted(t);
+                _originDate = {1900 + t->tm_year, 1 + t->tm_mon, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec};
+                _dayOriginUtcNs =
+                    1000000000LL * (t->tm_hour * 3600 + t->tm_min * 60 + t->tm_sec) + ((_originUtcNs + _tzOffsetNs) % 1000000000LL);
+                return false;
+            },
+            _fileLoadErrorMsg)) {
+        return false;
+    }
+
+    return true;
+}
+
 void
 vwMain::draw()
 {
@@ -300,7 +346,7 @@ vwMain::draw()
             break;
 
         case Phase::InitiateFileLoading: {
-            if (!_logSession.init(_filename.toChar(), _fileLoadErrorMsg)) {
+            if (!loadSession()) {
                 fprintf(stderr, "Error: %s\n", _fileLoadErrorMsg.c_str());
                 ImGui::OpenPopup("Unable to load logs");
                 _filename = "";
@@ -324,6 +370,7 @@ vwMain::draw()
             asserted(false);
     }
 
+    // Popup for loading
     bool openPopupModal = true;
     if (ImGui::BeginPopupModal("Unable to load logs", &openPopupModal, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize)) {
         ImGui::PushStyleColor(ImGuiCol_Text, uYellow);
@@ -339,6 +386,11 @@ vwMain::draw()
         ImGui::EndPopup();
     }
 
+    // Handle the font size hotkeys globally
+    if (ImGui::GetIO().KeyCtrl) {
+        if (ImGui::IsKeyPressed(ImGuiKey_KeypadAdd) && _settingsView.fontSize < FontSizeMax) { _settingsView.fontSize += 1; }
+        if (ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract) && _settingsView.fontSize > FontSizeMin) { _settingsView.fontSize -= 1; }
+    }
     ImGui::End();  // End of global window
 
     ImGui::PopFont();

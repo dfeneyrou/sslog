@@ -847,8 +847,6 @@ keysymToKeycode(KeySym symbol)
             return KC_Slash;
         case XK_equal:
             return KC_Equal;
-        case XK_minus:
-            return KC_Hyphen;
         case XK_bracketleft:
             return KC_LBracket;
         case XK_bracketright:
@@ -884,8 +882,10 @@ keysymToKeycode(KeySym symbol)
             return KC_Insert;
         case XK_Delete:
             return KC_Delete;
+        case XK_plus:
         case XK_KP_Add:
             return KC_Add;
+        case XK_minus:
         case XK_KP_Subtract:
             return KC_Subtract;
         case XK_KP_Multiply:
@@ -1047,15 +1047,16 @@ processInputs(Handler* handler)
     };
     */
 
+    int         index = 0;
+    KeySym      keysym;
     Keycode     kc = KC_Unknown;
     KeyModState kms;
     while (XPending(gGlob.xDisplay)) {
         // Get next event
         XNextEvent(gGlob.xDisplay, &event);
         /* // Debug code
-          if(event.type<LASTEvent) printf("Event %-14s-%2d:",
-          eventNames[event.type], event.type); else printf("Unknown event %2d",
-          event.type);
+          if(event.type<LASTEvent) printf("Event %-14s-%2d:", eventNames[event.type], event.type);
+          else printf("Unknown event %2d", event.type);
         */
 
         switch (event.type) {
@@ -1087,43 +1088,42 @@ processInputs(Handler* handler)
             } break;
 
             case KeyPress:
-                for (int i = 0; i < 4; ++i) {  // Try each KeySym index (modifier group) until we get a match
-                    if ((kc = keysymToKeycode(XLookupKeysym(&event.xkey, i))) != KC_Unknown) break;
-                }
-                if (kc != KC_Unknown) {
-                    kms = {(bool)(event.xkey.state & ShiftMask), (bool)(event.xkey.state & ControlMask),
-                           (bool)(event.xkey.state & Mod1Mask), (bool)(event.xkey.state & Mod4Mask)};
-                    // KMS reflects the state *before* the key event... It must be updated
-                    switch (kc) {
-                        case KC_LShift:
-                        case KC_RShift:
-                            kms.shift = true;
-                            break;
-                        case KC_LControl:
-                        case KC_RControl:
-                            kms.ctrl = true;
-                            break;
-                        case KC_LAlt:
-                        case KC_RAlt:
-                            kms.alt = true;
-                            break;
-                        case KC_LSystem:
-                        case KC_RSystem:
-                            kms.sys = true;
-                            break;
-                        default:
-                            break;
-                    }
-                    gGlob.osHandler->eventKeyPressed(kc, kms);
-                }
-
                 // Generate a character event
                 if (XFilterEvent(&event, None)) break;  // Filtered by the system
 #ifdef X_HAVE_UTF8_STRING
                 if (gGlob.xInputContext) {
                     Status  status = 0;
                     uint8_t keyBuffer[16];
-                    int     length = Xutf8LookupString(gGlob.xInputContext, &event.xkey, (char*)keyBuffer, 16, nullptr, &status);
+                    int length = Xutf8LookupString(gGlob.xInputContext, &event.xkey, (char*)keyBuffer, sizeof(keyBuffer), &keysym, &status);
+
+                    kc = keysymToKeycode(keysym);
+                    if (kc != KC_Unknown) {
+                        kms = {(bool)(event.xkey.state & ShiftMask), (bool)(event.xkey.state & ControlMask),
+                               (bool)(event.xkey.state & Mod1Mask), (bool)(event.xkey.state & Mod4Mask)};
+                        // KMS reflects the state *before* the key event... It must be updated
+                        switch (kc) {
+                            case KC_LShift:
+                            case KC_RShift:
+                                kms.shift = true;
+                                break;
+                            case KC_LControl:
+                            case KC_RControl:
+                                kms.ctrl = true;
+                                break;
+                            case KC_LAlt:
+                            case KC_RAlt:
+                                kms.alt = true;
+                                break;
+                            case KC_LSystem:
+                            case KC_RSystem:
+                                kms.sys = true;
+                                break;
+                            default:
+                                break;
+                        }
+                        gGlob.osHandler->eventKeyPressed(kc, kms);
+                    }
+
                     if (length > 0) {
                         char16_t codepoint = 0;
                         (void)bsCharUtf8ToUnicode(keyBuffer, keyBuffer + length, codepoint);
@@ -1134,17 +1134,45 @@ processInputs(Handler* handler)
                 {  // Fallback if no UTF-8 support: handles only Latin-1
                     static XComposeStatus status;
                     char                  keyBuffer[16];
-                    if (XLookupString(&event.xkey, keyBuffer, sizeof(keyBuffer), nullptr, &status)) {
-                        gGlob.osHandler->eventChar((uint16_t)keyBuffer[0]);
+                    int                   length = XLookupString(&event.xkey, keyBuffer, sizeof(keyBuffer), &keysym, &status);
+                    kc                           = keysymToKeycode(keysym);
+                    if (kc != KC_Unknown) {
+                        kms = {(bool)(event.xkey.state & ShiftMask), (bool)(event.xkey.state & ControlMask),
+                               (bool)(event.xkey.state & Mod1Mask), (bool)(event.xkey.state & Mod4Mask)};
+                        // KMS reflects the state *before* the key event... It must be updated
+                        switch (kc) {
+                            case KC_LShift:
+                            case KC_RShift:
+                                kms.shift = true;
+                                break;
+                            case KC_LControl:
+                            case KC_RControl:
+                                kms.ctrl = true;
+                                break;
+                            case KC_LAlt:
+                            case KC_RAlt:
+                                kms.alt = true;
+                                break;
+                            case KC_LSystem:
+                            case KC_RSystem:
+                                kms.sys = true;
+                                break;
+                            default:
+                                break;
+                        }
+                        gGlob.osHandler->eventKeyPressed(kc, kms);
                     }
+
+                    if (length > 0) { gGlob.osHandler->eventChar((uint16_t)keyBuffer[0]); }
                 }
 
                 break;
 
             case KeyRelease:
-                for (int i = 0; i < 4; ++i) {  // Try each KeySym index (modifier group) until we get a match
-                    if ((kc = keysymToKeycode(XLookupKeysym(&event.xkey, i))) != KC_Unknown) break;
-                }
+                index = 0;
+                if (event.xkey.state & ShiftMask) { index += 1; }
+                if (event.xkey.state & Mod1Mask) { index += 2; }
+                kc = keysymToKeycode(XLookupKeysym(&event.xkey, index));
                 if (kc != KC_Unknown) {
                     kms = {(bool)(event.xkey.state & ShiftMask), (bool)(event.xkey.state & ControlMask),
                            (bool)(event.xkey.state & Mod1Mask), (bool)(event.xkey.state & Mod4Mask)};
