@@ -3,7 +3,6 @@
 #include <cstring>
 
 #include "bs.h"
-#include "bsVec.h"
 
 // Simple and fast flat hash table with linear open addressing and external hashing (= uint64_t key)
 //  - Null hash is turned into hash=1 (sentinel value)

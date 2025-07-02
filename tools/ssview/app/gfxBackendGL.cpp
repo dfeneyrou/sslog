@@ -7,8 +7,9 @@
 #include "imgui.h"
 
 // Internal
+#include <vector>
+
 #include "bs.h"
-#include "bsVec.h"
 #include "gfxBackend.h"
 #include "glHelper.h"
 
@@ -140,7 +141,7 @@ appBackendUpdateTexture(ImTextureData* tex)
         GLuint gl_tex_id = (GLuint)(intptr_t)tex->TexID;
         glBindTexture(GL_TEXTURE_2D, gl_tex_id);
 
-        bsVec<uint8_t> tempBuffer;
+        std::vector<uint8_t> tempBuffer;
         for (ImTextureRect& r : tex->Updates) {
             const int src_pitch = r.w * tex->BytesPerPixel;
             tempBuffer.resize(r.h * src_pitch);

@@ -112,7 +112,7 @@ appMain::drawMainMenuBar()
     // Handle the load file dialog
     if (_fileDialogLoadLogs->draw()) { dirty(); }
     if (_fileDialogLoadLogs->hasSelection()) {
-        const bsVec<bsString>& result = _fileDialogLoadLogs->getSelection();
+        const std::vector<bsString>& result = _fileDialogLoadLogs->getSelection();
         if (!result.empty()) {
             _lastPath = result[0];
             _filename = result[0];

@@ -2,9 +2,10 @@
 
 #include "appCommon.h"
 
+#include <vector>
+
 #include "asserted.h"
 #include "bs.h"
-#include "bsVec.h"
 #include "imgui.h"
 #include "imgui_internal.h"  // For the DockBuilder API (alpha) + title bar tooltip
 
@@ -76,7 +77,7 @@ selectBestDockLocation(bool bigWidth, bool bigHeight)
     ClassDockId cds[4];  // 0 = biggest area, 1=highest, 2=widest, 3=smallest area
 
     // Parse the layout tree
-    bsVec<ImGuiDockNode*> stack;
+    std::vector<ImGuiDockNode*> stack;
     stack.reserve(32);
     stack.push_back(root);
     while (!stack.empty()) {

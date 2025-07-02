@@ -4,6 +4,7 @@
 #include <atomic>
 #include <functional>
 #include <mutex>
+#include <vector>
 
 // External
 #include "imgui.h"
@@ -71,20 +72,20 @@ class appMain
         std::vector<int> valuePositions;
     };
     struct TextView {
-        uint32_t        uniqueId = 0;
-        char            name[64];
-        float           maxCategoryLength      = 0;
-        float           maxThreadLength        = 0;
-        float           lengthFontSizeRef      = 1.;
-        bool            isDataDirty            = true;
-        bool            isNew                  = true;
-        int64_t         rangeSelStartNs        = -1;
-        float           rangeSelStartY         = 0.;
-        bool            doDisplayLevel         = true;
-        bool            doDisplayThread        = true;
-        bool            doDisplayCategory      = true;
-        bool            doDisplayBufferContent = true;
-        bsVec<TextElem> cachedElems;
+        uint32_t              uniqueId = 0;
+        char                  name[64];
+        float                 maxCategoryLength      = 0;
+        float                 maxThreadLength        = 0;
+        float                 lengthFontSizeRef      = 1.;
+        bool                  isDataDirty            = true;
+        bool                  isNew                  = true;
+        int64_t               rangeSelStartNs        = -1;
+        float                 rangeSelStartY         = 0.;
+        bool                  doDisplayLevel         = true;
+        bool                  doDisplayThread        = true;
+        bool                  doDisplayCategory      = true;
+        bool                  doDisplayBufferContent = true;
+        std::vector<TextElem> cachedElems;
     };
     void                  addTextView(uint32_t id);
     void                  drawTexts();

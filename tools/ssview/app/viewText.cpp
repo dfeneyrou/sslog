@@ -217,7 +217,7 @@ appMain::drawText(TextView& lv)
 
         // Override in color the argument values and names
         asserted((ci.valuePositions.size() & 1) == 0, "The value position array must be even", ci.valuePositions.size());
-        for (auto i = 0; i < ci.valuePositions.size(); i += 2) {
+        for (uint32_t i = 0; i < ci.valuePositions.size(); i += 2) {
             // Find positions
             const char* sStart     = ci.message.c_str();
             const char* valueStart = sStart + ci.valuePositions[i];

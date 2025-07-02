@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 // Internal
 #include "bs.h"
@@ -396,8 +397,8 @@ setIcon(int width, int height, const uint8_t* pixels)
     XDestroyImage(iconImage);  // This frees the iconPixels array
 
     // Mask pixmap (with 1 bit depth)
-    int            pitch = (width + 7) / 8;
-    bsVec<uint8_t> maskPixels(pitch * height);
+    int                  pitch = (width + 7) / 8;
+    std::vector<uint8_t> maskPixels(pitch * height);
     memset(&maskPixels[0], 0, maskPixels.size() * sizeof(uint8_t));
     for (int j = 0; j < height; ++j) {
         for (int i = 0; i < pitch; ++i) {
@@ -419,10 +420,10 @@ setIcon(int width, int height, const uint8_t* pixels)
     XFree(hints);
 
     // First 2 uint64_t are the width and height of the icon. Image data is with swapped red and blue.
-    bsVec<uint64_t> icccmIconPixels(2 + width * height);
-    uint64_t*       ptr = &icccmIconPixels[0];
-    *ptr++              = width;
-    *ptr++              = height;
+    std::vector<uint64_t> icccmIconPixels(2 + width * height);
+    uint64_t*             ptr = &icccmIconPixels[0];
+    *ptr++                    = width;
+    *ptr++                    = height;
     for (int i = 0; i < width * height; ++i) {
         *(ptr++) = pixels[i * 4 + 2] | (pixels[i * 4 + 1] << 8) | (pixels[i * 4 + 0] << 16) | (pixels[i * 4 + 3] << 24);
     }
@@ -482,7 +483,7 @@ fileOpen(const bsString& path, const char* mode)
 }
 
 bool
-loadFileContent(const bsString& path, bsVec<uint8_t>& buffer, int maxSize)
+loadFileContent(const bsString& path, std::vector<uint8_t>& buffer, int maxSize)
 {
     // Get file size
     buffer.clear();
@@ -531,7 +532,7 @@ makeDir(const bsString& path)
 }
 
 DirStatusCode
-getDirContent(const bsString& path, bsVec<DirEntry>& entries)
+getDirContent(const bsString& path, std::vector<DirEntry>& entries)
 {
     // Open directory
     entries.clear();

@@ -12,7 +12,7 @@
 // Constants
 constexpr ImU32 uYellow = IM_COL32(255, 192, 64, 255);
 
-appFileDialog::appFileDialog(const bsString& title, Mode mode, const bsVec<bsString>& typeFilters)
+appFileDialog::appFileDialog(const bsString& title, Mode mode, const std::vector<bsString>& typeFilters)
     : _title(title), _mode(mode), _typeFilters(typeFilters)
 {
     _dirEntries.reserve(128);
@@ -74,7 +74,7 @@ appFileDialog::draw(void)
     if (_isEntriesDirty) {
         _dirEntries.clear();
         _fileEntries.clear();
-        bsVec<os::DirEntry> entries;
+        std::vector<os::DirEntry> entries;
         if (_path.empty()) {  // Root case
             if (_driveBitMap) {
                 // Creation of the drive letters on Windows
@@ -291,7 +291,7 @@ appFileDialog::draw(void)
     ImGui::SameLine();
     ImGui::SetNextItemWidth(comboWidth);
     if (ImGui::BeginCombo("##Extension", _typeFilters[_selectedFilterIdx].toChar())) {
-        for (int i = 0; i < _typeFilters.size(); ++i) {
+        for (int i = 0; i < (int)_typeFilters.size(); ++i) {
             if (ImGui::Selectable(_typeFilters[i].toChar(), (i == _selectedFilterIdx))) { _selectedFilterIdx = i; }
         }
         ImGui::EndCombo();

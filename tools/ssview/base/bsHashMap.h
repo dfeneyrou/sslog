@@ -3,7 +3,6 @@
 #include <cstring>
 
 #include "bs.h"
-#include "bsVec.h"
 
 // Simple and fast flat hash table with linear open addressing, dedicated to
 // build a lookup

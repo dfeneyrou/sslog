@@ -2,8 +2,6 @@
 
 #include <cstring>
 
-#include "bsVec.h"
-
 // Simple and fast flat hash set with linear open addressing
 // - key is a uint64_t hash (so hashing is external. Ensure good enough hashing to
 // avoid clusters)

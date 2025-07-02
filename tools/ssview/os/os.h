@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdio>
+#include <vector>
 
 #include "bs.h"
 #include "bsString.h"
@@ -125,7 +126,7 @@ Date
 getDate();
 
 DirStatusCode
-getDirContent(const bsString& path, bsVec<DirEntry>& entries);
+getDirContent(const bsString& path, std::vector<DirEntry>& entries);
 
 DirStatusCode
 makeDir(const bsString& path);
@@ -143,7 +144,7 @@ Date
 getCreationDate(const bsString& path);
 
 bool
-loadFileContent(const bsString& path, bsVec<uint8_t>& buffer, int maxSize = -1);
+loadFileContent(const bsString& path, std::vector<uint8_t>& buffer, int maxSize = -1);
 
 DirStatusCode
 removeFile(const bsString& path);
