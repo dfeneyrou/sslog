@@ -226,7 +226,7 @@ appMain::drawLog(LogView& lv)
     }
 
     // Drag with middle button
-    if (isWindowHovered && ImGui::IsMouseDragging(1)) {
+    if ((isWindowHovered || lv.rangeSelStartNs >= 0) && ImGui::IsMouseDragging(1)) {
         // Start a range selection
         if (lv.rangeSelStartNs < 0 && mouseTimeBestTimeNs >= 0) {
             lv.rangeSelStartNs = mouseTimeBestTimeNs;
@@ -234,10 +234,10 @@ appMain::drawLog(LogView& lv)
         }
 
         // Drag on-going: display the selection box with transparency and range
-        if (lv.rangeSelStartNs >= 0 && lv.rangeSelStartNs < mouseTimeBestTimeNs) {
+        if (lv.rangeSelStartNs >= 0) {
             float           x         = winX + textPixMargin - curScrollPosX;
-            float           y1        = lv.rangeSelStartY - fontHeight;
-            float           y2        = mouseTimeBestY;
+            float           y1        = lv.rangeSelStartY - ((lv.rangeSelStartNs < mouseTimeBestTimeNs) ? fontHeight : 0);
+            float           y2        = mouseTimeBestY - ((lv.rangeSelStartNs < mouseTimeBestTimeNs) ? 0 : fontHeight);
             constexpr float arrowSize = 4.f;
             // White background
             DRAWLIST->AddRectFilled(ImVec2(x, y1), ImVec2(x + winWidth, y2), IM_COL32(255, 255, 255, 128));
@@ -249,7 +249,7 @@ appMain::drawLog(LogView& lv)
             DRAWLIST->AddLine(ImVec2(mouseX, y2), ImVec2(mouseX - arrowSize, y2 - arrowSize), uBlack, 2.f);
             DRAWLIST->AddLine(ImVec2(mouseX, y2), ImVec2(mouseX + arrowSize, y2 - arrowSize), uBlack, 2.f);
             // Text
-            snprintf(tmpStr, sizeof(tmpStr), "{ %s }", getNiceDuration(mouseTimeBestTimeNs - lv.rangeSelStartNs));
+            snprintf(tmpStr, sizeof(tmpStr), "{ %s }", getNiceDuration(bsAbs(mouseTimeBestTimeNs - lv.rangeSelStartNs)));
             ImVec2 tb = ImGui::CalcTextSize(tmpStr);
             float  x3 = mouseX - 0.5f * tb.x;
             DRAWLIST->AddRectFilled(ImVec2(x3 - 5.f, mouseY - tb.y - 5.f), ImVec2(x3 + tb.x + 5.f, mouseY - 5.f),
