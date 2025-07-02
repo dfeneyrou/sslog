@@ -266,7 +266,7 @@ if(!session.init("/path/to/my/log/folder", errorMessage)) {
     exit(1)
 }
 
-if(!session->query({}, [session](const sslogread::LogStruct& log) {
+if(!session->query({}, [session](const sslogread::LogStruct& log) -> bool {
 
                  // Format the string with arguments (=custom vsnprintf with our argument list, see below)
                  char filledFormat[1024];
@@ -277,6 +277,7 @@ if(!session->query({}, [session](const sslogread::LogStruct& log) {
                      log.timestampUtcNs, session->getIndexedString(log.threadIdx), session->getIndexedString(log.categoryIdx),
                      log.buffer.empty()? "No" : "Yes", filledFormat);
 
+                 return true; // We want more logs
              },
              errorMessage)
 {

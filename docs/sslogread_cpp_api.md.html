@@ -17,7 +17,7 @@ Its methods offers services to manipulate the logs.
 Errors are handled by returning an error flag and an error message (no exceptions).
 
 Strings are a base component of logs and are usually highly redundant (format string, thread name, category, ...). <br>
-In this sense they are particular, as in `sslog` they are stored uniquely once and indexed, which brings many benefits. <br> 
+In this sense they are particular, as in `sslog` they are stored uniquely once and indexed, which brings many benefits. <br>
 Logs refers to them just by their index, and can be quickly grouped. <br>
 The `LogSession` API reflect this characteristic.
 
@@ -87,14 +87,14 @@ Ex: `"/home/user/*"`, `"*/user/omer"`, `"*user*"`
 ##### Declaration
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-bool LogSession:: query(const std::vector<Rule>& rules, const std::function&lt;void(const LogStruct&)&gt;& callback, std::string& errorMessage) const;
+bool LogSession:: query(const std::vector<Rule>& rules, const std::function&lt;bool(const LogStruct&)&gt;& callback, std::string& errorMessage) const;
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-| Parameter name | Type                                                | Direction | Description                               |
-|----------------|-----------------------------------------------------|-----------|-------------------------------------------|
-| `rules`        | `const std::vector<Rule>&`                          | Input     | The array of rules for filtering          |
-| `callback`     | `const std::function&lt;void(const LogStruct&)&gt;` | Input     | The callback which provide each selected log |
-| `errorMessage` | `std::string&`                                      | Output    | The error message, if necessary           |
+| Parameter name | Type                                                | Direction | Description                                                                              |
+|----------------|-----------------------------------------------------|-----------|------------------------------------------------------------------------------------------|
+| `rules`        | `const std::vector<Rule>&`                          | Input     | The array of rules for filtering                                                         |
+| `callback`     | `const std::function&lt;bool(const LogStruct&)&gt;` | Input     | The callback which provide each selected log <br> If false is returned, the query stops. |
+| `errorMessage` | `std::string&`                                      | Output    | The error message, if necessary                                                          |
 
 Returned value:
  - `true` if the query is successful
@@ -204,10 +204,11 @@ if(!session->query({}, [session](const sslogread::LogStruct& log) {
                      log.timestampUtcNs, session->getIndexedString(log.threadIdx), session->getIndexedString(log.categoryIdx),
                      log.buffer.empty()? "No" : "Yes", filledFormat);
 
+                 return true; // Continue to provide logs
              },
              errorMessage)
 {
-    fprinf(stderr, "Error: %s\n", errorMessage.c_str());
+    fprintf(stderr, "Error: %s\n", errorMessage.c_str());
 }
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -220,7 +221,7 @@ rule.bufferSizeMin = 1;
 std::string errorMessage;
 if(!session.query({rule}, [](const sslogread::LogStruct& log) { /* ... */ }, errorMessage)
 {
-    fprinf(stderr, "Error: %s\n", errorMessage.c_str());
+    fprintf(stderr, "Error: %s\n", errorMessage.c_str());
 }
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -290,7 +291,7 @@ rule2.arguments.push_back("wheels>=4");
 std::string errorMessage;
 if(!session.query({rule1, rule2}, [](const sslogread::LogStruct& log) { /* ... */ }, errorMessage)
 {
-    fprinf(stderr, "Error: %s\n", errorMessage.c_str());
+    fprintf(stderr, "Error: %s\n", errorMessage.c_str());
 }
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -541,10 +542,12 @@ if(!session->query({}, [session](const sslogread::LogStruct& log) {
                  printf("[timestampUtcNs=%lu  thread=%s  category=%s  buffer=%s] %s\n",
                      log.timestampUtcNs, session->getIndexedString(log.threadIdx), session->getIndexedString(log.categoryIdx),
                      log.buffer.empty()? "No" : "Yes", buffer);
+
+                 return true; // Continue to provide logs
              },
              errorMessage)
 {
-    fprinf(stderr, "Error: %s\n", errorMessage.c_str());
+    fprintf(stderr, "Error: %s\n", errorMessage.c_str());
 }
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -609,10 +612,11 @@ if(!session->query({}, [session, &tf](const sslogread::LogStruct& log) {
                            session->getIndexedString(log.categoryIdx), logContent, false);
 
                  printf("%s\n", logBuffer);
+                 return true; // Continue to provide logs
              },
              errorMessage)
 {
-    fprinf(stderr, "Error: %s\n", errorMessage.c_str());
+    fprintf(stderr, "Error: %s\n", errorMessage.c_str());
 }
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

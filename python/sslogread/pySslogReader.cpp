@@ -286,6 +286,7 @@ session_query(SessionObject* self, PyObject* args)
 
             PyList_Append(outputList, pyLog);
             Py_DECREF(pyLog);  // 'Append' takes a reference
+            return true;
         },
         errorMessage);
 
