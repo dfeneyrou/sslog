@@ -1,13 +1,13 @@
 #pragma once
 
 void
-vwBackendInit();
+appBackendInit();
 
 bool
-vwBackendDraw();  // Return true is something has been drawn
+appBackendDraw();  // Return true is something has been drawn
 
 bool
-vwCaptureScreen(int* width, int* height, uint8_t** buffer);
+appCaptureScreen(int* width, int* height, uint8_t** buffer);
 
 void
-vwBackendUninit();
+appBackendUninit();

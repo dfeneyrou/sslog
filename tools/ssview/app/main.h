@@ -18,17 +18,17 @@
 #include "fileDialog.h"
 
 // Forward declarations
-class vwPlatform;
+class appPlatform;
 
 // Helpers
 #define DRAWLIST ImGui::GetWindowDrawList()
 
-class vwMain  // @RENAME
+class appMain
 {
    public:
     // Constructor & destructor
-    vwMain(vwPlatform* platform, const bsString& filename);
-    ~vwMain();
+    appMain(appPlatform* platform, const bsString& filename);
+    ~appMain();
     void notifyStart();
 
     // Application
@@ -43,8 +43,8 @@ class vwMain  // @RENAME
     std::thread        _workerThread;
     int64_t            _mouseTimeNs = 0.;
 
-    vwMain(const vwMain& other);  // To please static analyzers
-    vwMain& operator=(vwMain other);
+    appMain(const appMain& other);  // To please static analyzers
+    appMain& operator=(appMain other);
 
     void drawMainMenuBar();
     void drawHelp();
@@ -91,7 +91,7 @@ class vwMain  // @RENAME
     void                 prepareLogData(LogView& lv);
     std::vector<LogView> _logViews;
 
-    vwPlatform*        _platform                = 0;
+    appPlatform*       _platform                = 0;
     uint32_t           _generatorUniqueId       = 1;
     bsUs_t             _lastMouseMoveDurationUs = 0;
     std::vector<ImU32> _colorPalette;
@@ -120,9 +120,9 @@ class vwMain  // @RENAME
     SettingsView _settingsView;
 
     // File dialogs
-    vwFileDialog* _fileDialogLoadLogs = nullptr;
-    bsString      _lastPath;
-    std::string   _fileLoadErrorMsg;
+    appFileDialog* _fileDialogLoadLogs = nullptr;
+    bsString       _lastPath;
+    std::string    _fileLoadErrorMsg;
 
     // Log window
 };

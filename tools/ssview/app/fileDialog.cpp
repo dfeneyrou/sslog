@@ -12,7 +12,7 @@
 // Constants
 constexpr ImU32 uYellow = IM_COL32(255, 192, 64, 255);
 
-vwFileDialog::vwFileDialog(const bsString& title, Mode mode, const bsVec<bsString>& typeFilters)
+appFileDialog::appFileDialog(const bsString& title, Mode mode, const bsVec<bsString>& typeFilters)
     : _title(title), _mode(mode), _typeFilters(typeFilters)
 {
     _dirEntries.reserve(128);
@@ -20,7 +20,7 @@ vwFileDialog::vwFileDialog(const bsString& title, Mode mode, const bsVec<bsStrin
 }
 
 void
-vwFileDialog::open(const bsString& initialPath, int maxSelectionQty)
+appFileDialog::open(const bsString& initialPath, int maxSelectionQty)
 {
     if (_isOpen) return;
     asserted(_mode == OPEN_FILE || maxSelectionQty == 1);
@@ -40,7 +40,7 @@ vwFileDialog::open(const bsString& initialPath, int maxSelectionQty)
 }
 
 bool
-vwFileDialog::draw(void)
+appFileDialog::draw(void)
 {
     static const char* months[13] = {"NULL", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 

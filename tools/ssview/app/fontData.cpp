@@ -2642,12 +2642,12 @@ static const unsigned int robotoMediumFont_compressed_data[115744 / 4] = {
 
 // Getters
 int
-vwGetFontDataSizeRobotoMedium(void)
+appGetFontDataSizeRobotoMedium(void)
 {
     return robotoMediumFont_compressed_size;
 }
 const void*
-vwGetFontDataRobotoMedium(void)
+appGetFontDataRobotoMedium(void)
 {
     return robotoMediumFont_compressed_data;
 }

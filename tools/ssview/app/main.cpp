@@ -68,7 +68,7 @@ static const unsigned int icon_data[1492 / 4] = {
 // ==============================================================================================
 
 void
-vwMain::drawMainMenuBar()
+appMain::drawMainMenuBar()
 {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
@@ -122,7 +122,7 @@ vwMain::drawMainMenuBar()
 }
 
 void
-vwMain::drawAbout()
+appMain::drawAbout()
 {
     static constexpr char const* textDescr = "ssview - graphical log viewer";
 
@@ -169,7 +169,7 @@ vwMain::drawAbout()
 }
 
 void
-vwMain::drawSettings(void)
+appMain::drawSettings(void)
 {
     static int  draggedFontSize = -1;
     const float sliderWidth     = ImGui::CalcTextSize("UTC").x * 5.f;  // Arbitrary size
@@ -250,10 +250,10 @@ vwMain::drawSettings(void)
 // Main application
 // ==============================================================================================
 
-vwMain::vwMain(vwPlatform* platform, const bsString& filename) : _platform(platform)
+appMain::appMain(appPlatform* platform, const bsString& filename) : _platform(platform)
 {
     // Create internal objects
-    _fileDialogLoadLogs = new vwFileDialog("Select sslog folder", vwFileDialog::SELECT_DIR, {"*.*"});
+    _fileDialogLoadLogs = new appFileDialog("Select sslog folder", appFileDialog::SELECT_DIR, {"*.*"});
 
     // Install the icon
     int      width = 0, height = 0;
@@ -287,33 +287,33 @@ vwMain::vwMain(vwPlatform* platform, const bsString& filename) : _platform(platf
     _filename = filename;
 }
 
-vwMain::~vwMain() { delete _fileDialogLoadLogs; }
+appMain::~appMain() { delete _fileDialogLoadLogs; }
 
 void
-vwMain::notifyStart()
+appMain::notifyStart()
 {
 }
 
 int
-vwMain::getDisplayWidth()
+appMain::getDisplayWidth()
 {
     return _platform->getDisplayWidth();
 }
 
 int
-vwMain::getDisplayHeight()
+appMain::getDisplayHeight()
 {
     return _platform->getDisplayHeight();
 }
 
 void
-vwMain::dirty()
+appMain::dirty()
 {
     _platform->notifyDrawDirty();
 }
 
 bool
-vwMain::loadSession()
+appMain::loadSession()
 {
     if (!_logSession.init(_filename.toChar(), _fileLoadErrorMsg)) { return false; }
 
@@ -347,7 +347,7 @@ vwMain::loadSession()
 }
 
 void
-vwMain::draw()
+appMain::draw()
 {
     ImGui::PushFont(nullptr, _settingsView.fontSize);
     _lastMouseMoveDurationUs = _platform->getLastMouseMoveDurationUs();

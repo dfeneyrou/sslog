@@ -1,7 +1,7 @@
 #pragma once
 
 int
-vwGetFontDataSizeRobotoMedium(void);
+appGetFontDataSizeRobotoMedium(void);
 
 const void*
-vwGetFontDataRobotoMedium(void);
+appGetFontDataRobotoMedium(void);

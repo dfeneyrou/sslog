@@ -51,10 +51,10 @@ static struct {
     int               attribLocationPosition    = 0;
     int               attribLocationUV          = 0;
     int               attribLocationColor       = 0;
-} vwGlCtx;
+} appGlCtx;
 
 void
-vwBackendInit(void)
+appBackendInit(void)
 {
     // Set maximum texture size (for ImGui dynamic fonts)
     ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
@@ -63,25 +63,26 @@ vwBackendInit(void)
     platform_io.Renderer_TextureMaxWidth = platform_io.Renderer_TextureMaxHeight = (int)maxTextureSize;
 
     // Allocate the font texture (fully initialized later)
-    glGenTextures(1, &vwGlCtx.fontTextureId);
-    glBindTexture(GL_TEXTURE_2D, vwGlCtx.fontTextureId);
+    glGenTextures(1, &appGlCtx.fontTextureId);
+    glBindTexture(GL_TEXTURE_2D, appGlCtx.fontTextureId);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
     // Build and configure the OpenGL Vertex Array Object for GUI
-    vwGlCtx.guiGlProgram.install(guiVertexShaderSrc, guiFragmentShaderSrc);
-    vwGlCtx.unifAttribLocationTex     = glGetUniformLocation(vwGlCtx.guiGlProgram.getId(), "Texture");
-    vwGlCtx.unifAttribLocationProjMtx = glGetUniformLocation(vwGlCtx.guiGlProgram.getId(), "ProjMtx");
-    vwGlCtx.attribLocationPosition    = glGetAttribLocation(vwGlCtx.guiGlProgram.getId(), "Position");
-    vwGlCtx.attribLocationUV          = glGetAttribLocation(vwGlCtx.guiGlProgram.getId(), "UV");
-    vwGlCtx.attribLocationColor       = glGetAttribLocation(vwGlCtx.guiGlProgram.getId(), "Color");
-    glEnableVertexAttribArray(vwGlCtx.attribLocationPosition);
-    glEnableVertexAttribArray(vwGlCtx.attribLocationUV);
-    glEnableVertexAttribArray(vwGlCtx.attribLocationColor);
-    glVertexAttribPointer(vwGlCtx.attribLocationPosition, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, pos));
-    glVertexAttribPointer(vwGlCtx.attribLocationUV, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, uv));
-    glVertexAttribPointer(vwGlCtx.attribLocationColor, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert),
+    appGlCtx.guiGlProgram.install(guiVertexShaderSrc, guiFragmentShaderSrc);
+    appGlCtx.unifAttribLocationTex     = glGetUniformLocation(appGlCtx.guiGlProgram.getId(), "Texture");
+    appGlCtx.unifAttribLocationProjMtx = glGetUniformLocation(appGlCtx.guiGlProgram.getId(), "ProjMtx");
+    appGlCtx.attribLocationPosition    = glGetAttribLocation(appGlCtx.guiGlProgram.getId(), "Position");
+    appGlCtx.attribLocationUV          = glGetAttribLocation(appGlCtx.guiGlProgram.getId(), "UV");
+    appGlCtx.attribLocationColor       = glGetAttribLocation(appGlCtx.guiGlProgram.getId(), "Color");
+    glEnableVertexAttribArray(appGlCtx.attribLocationPosition);
+    glEnableVertexAttribArray(appGlCtx.attribLocationUV);
+    glEnableVertexAttribArray(appGlCtx.attribLocationColor);
+    glVertexAttribPointer(appGlCtx.attribLocationPosition, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert),
+                          (GLvoid*)IM_OFFSETOF(ImDrawVert, pos));
+    glVertexAttribPointer(appGlCtx.attribLocationUV, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, uv));
+    glVertexAttribPointer(appGlCtx.attribLocationColor, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert),
                           (GLvoid*)IM_OFFSETOF(ImDrawVert, col));
     GL_CHECK();
 
@@ -90,7 +91,7 @@ vwBackendInit(void)
 }
 
 void
-vwBackendDestroyTexture(ImTextureData* tex)
+appBackendDestroyTexture(ImTextureData* tex)
 {
     GLuint gl_tex_id = (GLuint)(intptr_t)tex->TexID;
     glDeleteTextures(1, &gl_tex_id);
@@ -100,7 +101,7 @@ vwBackendDestroyTexture(ImTextureData* tex)
 }
 
 void
-vwBackendUpdateTexture(ImTextureData* tex)
+appBackendUpdateTexture(ImTextureData* tex)
 {
     if (tex->GetStatus() == ImTextureStatus_WantCreate) {
         // Create and upload new texture to graphics system
@@ -152,30 +153,30 @@ vwBackendUpdateTexture(ImTextureData* tex)
         glBindTexture(GL_TEXTURE_2D, last_texture);  // Restore state
         GL_CHECK();
     } else if (tex->GetStatus() == ImTextureStatus_WantDestroy && tex->UnusedFrames > 0) {
-        vwBackendDestroyTexture(tex);
+        appBackendDestroyTexture(tex);
     }
 }
 
 bool
-vwBackendDraw(void)
+appBackendDraw(void)
 {
     ImDrawData* drawData = ImGui::GetDrawData();
     asserted(drawData);
-    vwGlCtx.frameBufferWidth  = (int)(drawData->DisplaySize.x * drawData->FramebufferScale.x);
-    vwGlCtx.frameBufferHeight = (int)(drawData->DisplaySize.y * drawData->FramebufferScale.y);
-    if (vwGlCtx.frameBufferWidth == 0 || vwGlCtx.frameBufferHeight == 0) return false;
+    appGlCtx.frameBufferWidth  = (int)(drawData->DisplaySize.x * drawData->FramebufferScale.x);
+    appGlCtx.frameBufferHeight = (int)(drawData->DisplaySize.y * drawData->FramebufferScale.y);
+    if (appGlCtx.frameBufferWidth == 0 || appGlCtx.frameBufferHeight == 0) return false;
 
     // Catch up with texture updates. Most of the times, the list will have 1 element with an OK status, aka nothing to do.
     // (This almost always points to ImGui::GetPlatformIO().Textures[] but is part of ImDrawData to allow overriding or disabling texture
     // updates).
     if (drawData->Textures != nullptr) {
         for (ImTextureData* tex : *drawData->Textures) {
-            if (tex->GetStatus() != ImTextureStatus_OK) { vwBackendUpdateTexture(tex); }
+            if (tex->GetStatus() != ImTextureStatus_OK) { appBackendUpdateTexture(tex); }
         }
     }
 
     // Backup GL state
-    // vwGlBackupState backup;
+    // appGlBackupState backup;
     // Setup render state: alpha-blending enabled, no face culling, no depth testing, scissor enabled, polygon fill
     glEnable(GL_BLEND);
     glBlendEquation(GL_FUNC_ADD);
@@ -190,7 +191,7 @@ vwBackendDraw(void)
     GL_CHECK();
 
     // Setup viewport, orthographic projection matrix
-    glViewport(0, 0, (GLsizei)vwGlCtx.frameBufferWidth, (GLsizei)vwGlCtx.frameBufferHeight);
+    glViewport(0, 0, (GLsizei)appGlCtx.frameBufferWidth, (GLsizei)appGlCtx.frameBufferHeight);
     ImGuiIO&    io                     = ImGui::GetIO();
     const float ortho_projection[4][4] = {
         {2.0f / io.DisplaySize.x, 0.0f, 0.0f, 0.0f},
@@ -198,10 +199,10 @@ vwBackendDraw(void)
         {0.0f, 0.0f, -1.0f, 0.0f},
         {-1.0f, 1.0f, 0.0f, 1.0f},
     };
-    glUseProgram(vwGlCtx.guiGlProgram.getId());
-    glUniform1i(vwGlCtx.unifAttribLocationTex, 0);
-    glUniformMatrix4fv(vwGlCtx.unifAttribLocationProjMtx, 1, GL_FALSE, &ortho_projection[0][0]);
-    glBindVertexArray(vwGlCtx.guiGlProgram.getVaoId());
+    glUseProgram(appGlCtx.guiGlProgram.getId());
+    glUniform1i(appGlCtx.unifAttribLocationTex, 0);
+    glUniformMatrix4fv(appGlCtx.unifAttribLocationProjMtx, 1, GL_FALSE, &ortho_projection[0][0]);
+    glBindVertexArray(appGlCtx.guiGlProgram.getVaoId());
     glBindSampler(0, 0);  // Rely on combined texture/sampler state.
     GL_CHECK();
 
@@ -209,8 +210,8 @@ vwBackendDraw(void)
     ImVec2 clipOff   = drawData->DisplayPos;        // (0,0) unless using multi-viewports
     ImVec2 clipScale = drawData->FramebufferScale;  // (1,1) unless using retina display which are often (2,2)
 
-    glBindBuffer(GL_ARRAY_BUFFER, vwGlCtx.guiGlProgram.getVboId());
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vwGlCtx.guiGlProgram.getIboId());
+    glBindBuffer(GL_ARRAY_BUFFER, appGlCtx.guiGlProgram.getVboId());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, appGlCtx.guiGlProgram.getIboId());
 
     for (int n = 0; n < drawData->CmdListsCount; ++n) {
         const ImDrawList* cmdList = drawData->CmdLists[n];
@@ -231,7 +232,7 @@ vwBackendDraw(void)
                 if (clipMax.x <= clipMin.x || clipMax.y <= clipMin.y) continue;
 
                 // Apply scissor/clipping rectangle (Y is inverted in OpenGL)
-                glScissor((int)clipMin.x, (int)((float)vwGlCtx.frameBufferHeight - clipMax.y), (int)(clipMax.x - clipMin.x),
+                glScissor((int)clipMin.x, (int)((float)appGlCtx.frameBufferHeight - clipMax.y), (int)(clipMax.x - clipMin.x),
                           (int)(clipMax.y - clipMin.y));
 
                 // Bind texture, Draw
@@ -251,25 +252,25 @@ vwBackendDraw(void)
 }
 
 bool
-vwCaptureScreen(int* width, int* height, uint8_t** buffer)
+appCaptureScreen(int* width, int* height, uint8_t** buffer)
 {
-    if (vwGlCtx.frameBufferWidth == 0 || vwGlCtx.frameBufferHeight == 0) return false;
+    if (appGlCtx.frameBufferWidth == 0 || appGlCtx.frameBufferHeight == 0) return false;
     asserted(width && height && buffer);
-    *width  = vwGlCtx.frameBufferWidth & ~0x3;  // Ensure multiple of 4 for better compatibility
-    *height = vwGlCtx.frameBufferHeight;
+    *width  = appGlCtx.frameBufferWidth & ~0x3;  // Ensure multiple of 4 for better compatibility
+    *height = appGlCtx.frameBufferHeight;
     *buffer = new uint8_t[3 * (*width) * (*height)];  // RGB = 3 components
     glReadPixels(0, 0, *width, *height, GL_RGB, GL_UNSIGNED_BYTE, *buffer);
     return true;
 }
 
 void
-vwBackendUninit(void)
+appBackendUninit(void)
 {
-    vwGlCtx.guiGlProgram.deinstall();
+    appGlCtx.guiGlProgram.deinstall();
 
     // Destroy all textures
     for (ImTextureData* tex : ImGui::GetPlatformIO().Textures) {
-        if (tex->RefCount == 1) { vwBackendDestroyTexture(tex); }
+        if (tex->RefCount == 1) { appBackendDestroyTexture(tex); }
     }
 }
 

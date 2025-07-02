@@ -9,17 +9,17 @@
 #include "keycode.h"
 #include "os.h"
 
-#define VW_REDRAW_PER_NTF    5
-#define VW_REDRAW_PER_BOUNCE 2
+#define APP_REDRAW_PER_NTF    5
+#define APP_REDRAW_PER_BOUNCE 2
 
-class vwMain;
+class appMain;
 
-class vwPlatform : public os::Handler
+class appPlatform : public os::Handler
 {
    public:
     // Constructor & destructor
-    vwPlatform(const bsString& filename);
-    virtual ~vwPlatform(void);
+    appPlatform(const bsString& filename);
+    virtual ~appPlatform(void);
     void run(void);
 
     // Application interface
@@ -33,7 +33,7 @@ class vwPlatform : public os::Handler
 
     // Event handling
     bool redraw();
-    void notifyDrawDirty(void) { _dirtyRedrawCount.store(VW_REDRAW_PER_NTF); }
+    void notifyDrawDirty(void) { _dirtyRedrawCount.store(APP_REDRAW_PER_NTF); }
     void notifyWindowSize(int windowWidth, int windowHeight)
     {
         _displayWidth  = windowWidth;
@@ -60,15 +60,15 @@ class vwPlatform : public os::Handler
     void eventWheelScrolled(int x, int y, int steps, os::KeyModState kms);
 
    private:
-    vwPlatform(const vwPlatform& other);  // To please static analyzers
-    vwPlatform& operator=(vwPlatform other);
-    void        configureStyle(void);
+    appPlatform(const appPlatform& other);  // To please static analyzers
+    appPlatform& operator=(appPlatform other);
+    void         configureStyle(void);
 
     // Platform state
     std::atomic<int>      _doExit;
     std::atomic<int>      _isVisible;
     std::atomic<uint64_t> _dirtyRedrawCount;
-    vwMain*               _main                = 0;
+    appMain*              _main                = 0;
     bsUs_t                _lastMouseMoveTimeUs = 0;
 
     // ImGui

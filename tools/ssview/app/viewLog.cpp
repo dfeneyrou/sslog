@@ -6,7 +6,7 @@
 #include "main.h"
 
 void
-vwMain::addLogView(uint32_t id)
+appMain::addLogView(uint32_t id)
 {
     _logViews.push_back({});
     _logViews.back().uniqueId = id;
@@ -14,7 +14,7 @@ vwMain::addLogView(uint32_t id)
 }
 
 void
-vwMain::prepareLogData(LogView& lv)
+appMain::prepareLogData(LogView& lv)
 {
     if (!lv.isDataDirty) { return; }
     lv.isDataDirty = false;
@@ -52,7 +52,7 @@ vwMain::prepareLogData(LogView& lv)
 }
 
 void
-vwMain::drawLogs()
+appMain::drawLogs()
 {
     if (_phase != Phase::Active) { return; }
     int itemToRemoveIdx = -1;
@@ -85,7 +85,7 @@ vwMain::drawLogs()
 }
 
 void
-vwMain::drawLog(LogView& lv)
+appMain::drawLog(LogView& lv)
 {
     char tmpStr[256];
     char lastDateStr[256];

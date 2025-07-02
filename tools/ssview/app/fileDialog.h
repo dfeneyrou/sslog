@@ -5,11 +5,11 @@
 #include "bsString.h"
 #include "os.h"
 
-class vwFileDialog
+class appFileDialog
 {
    public:
     enum Mode { SELECT_DIR, OPEN_FILE, SAVE_FILE };
-    vwFileDialog(const bsString& title, Mode mode, const bsVec<bsString>& typeFilters);
+    appFileDialog(const bsString& title, Mode mode, const bsVec<bsString>& typeFilters);
 
     void open(const bsString& initialPath, int maxSelectionQty = 1);
     void close(void) { _shallClose = true; }

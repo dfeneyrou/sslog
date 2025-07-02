@@ -24,7 +24,7 @@ const int BOUNCE_RENDER_GAP_US = 500000;  // 0.5 second bounce
 
 // Clipboard wrappers for ImGui
 static const char*
-vwGetClipboardText(void* user_data)
+appGetClipboardText(void* user_data)
 {
     (void)user_data;
     static bsString lastString;
@@ -33,7 +33,7 @@ vwGetClipboardText(void* user_data)
 }
 
 static void
-vwSetClipboardText(void* user_data, const char* text)
+appSetClipboardText(void* user_data, const char* text)
 {
     (void)user_data;
     os::pushToClipboard(os::ClipboardType::UTF8, bsString(text).toUtf16());
@@ -78,7 +78,7 @@ osBootstrapImpl(int argc, char* argv[])
 
     // Init
     os::createWindow("ssview", "ssview", 0.3f, 0.2f, 0.8f, 0.8f);
-    vwPlatform* platform = new vwPlatform(filename);
+    appPlatform* platform = new appPlatform(filename);
 
     // Run application
     platform->run();
@@ -93,7 +93,7 @@ osBootstrapImpl(int argc, char* argv[])
 // Wrapper on the OS and ImGUI
 // ==============================================================================================
 
-vwPlatform::vwPlatform(const bsString& filename) : _doExit(0), _isVisible(0), _dirtyRedrawCount(VW_REDRAW_PER_NTF)
+appPlatform::appPlatform(const bsString& filename) : _doExit(0), _isVisible(0), _dirtyRedrawCount(APP_REDRAW_PER_NTF)
 {
     // Update ImGui
     int dpiWidth, dpiHeight;
@@ -113,32 +113,32 @@ vwPlatform::vwPlatform(const bsString& filename) : _doExit(0), _isVisible(0), _d
     io.ConfigInputTextCursorBlink = false;
     configureStyle();
     ImGui::GetStyle().ScaleAllSizes(_dpiScale);
-    io.FontDefault = io.Fonts->AddFontFromMemoryCompressedTTF(vwGetFontDataRobotoMedium(), vwGetFontDataSizeRobotoMedium(), 1.);
+    io.FontDefault = io.Fonts->AddFontFromMemoryCompressedTTF(appGetFontDataRobotoMedium(), appGetFontDataSizeRobotoMedium(), 1.);
 
     // Install callbacks
-    io.SetClipboardTextFn = vwSetClipboardText;
-    io.GetClipboardTextFn = vwGetClipboardText;
+    io.SetClipboardTextFn = appSetClipboardText;
+    io.GetClipboardTextFn = appGetClipboardText;
     io.ClipboardUserData  = 0;
 
     // Initialize the graphical backend
-    vwBackendInit();
+    appBackendInit();
 
     // Creation of the main application
-    _main = new vwMain(this, filename);
+    _main = new appMain(this, filename);
 
     // Notify the start of the main application
     _main->notifyStart();
 }
 
-vwPlatform::~vwPlatform(void)
+appPlatform::~appPlatform(void)
 {
     delete _main;
-    vwBackendUninit();
+    appBackendUninit();
     ImGui::DestroyContext();
 }
 
 void
-vwPlatform::run(void)
+appPlatform::run(void)
 {
     enum { NO_EXIT, EXIT_REQUESTED, EXIT_NOW } exitState = NO_EXIT;
 
@@ -165,7 +165,7 @@ vwPlatform::run(void)
 }
 
 bool
-vwPlatform::redraw()
+appPlatform::redraw()
 {
     // Filter out some redraw based on the dirtiness of the display state.
     // Dear Imgui requires several frames to handle user events properly, so we display per batch.
@@ -183,7 +183,7 @@ vwPlatform::redraw()
         if (dirtyRedrawCount == 0) {
             bounceCount++;
             if (bounceCount == 2) {
-                WRITE_DIRTY_COUNT(VW_REDRAW_PER_BOUNCE, bounceCount);
+                WRITE_DIRTY_COUNT(APP_REDRAW_PER_BOUNCE, bounceCount);
             } else {
                 WRITE_DIRTY_COUNT(dirtyRedrawCount, bounceCount);
                 return false;
@@ -206,17 +206,17 @@ vwPlatform::redraw()
     _lastUpdateDurationUs = bsGetClockUs() - currentTimeUs;
 
     // Draw
-    return vwBackendDraw();
+    return appBackendDraw();
 }
 
 bool
-vwPlatform::captureScreen(int* width, int* height, uint8_t** buffer)
+appPlatform::captureScreen(int* width, int* height, uint8_t** buffer)
 {
-    return vwCaptureScreen(width, height, buffer);
+    return appCaptureScreen(width, height, buffer);
 }
 
 void
-vwPlatform::configureStyle(void)
+appPlatform::configureStyle(void)
 {
     // Dark side of the style, as a base
     ImGui::StyleColorsDark();
@@ -287,7 +287,7 @@ vwPlatform::configureStyle(void)
 // ==============================================================================================
 
 void
-vwPlatform::notifyEnter(os::KeyModState kms)
+appPlatform::notifyEnter(os::KeyModState kms)
 {
     ImGuiIO& io = ImGui::GetIO();
     io.AddKeyEvent(ImGuiKey_ModCtrl, kms.ctrl);
@@ -300,14 +300,14 @@ vwPlatform::notifyEnter(os::KeyModState kms)
 }
 
 void
-vwPlatform::notifyLeave(os::KeyModState kms)
+appPlatform::notifyLeave(os::KeyModState kms)
 {
     // Nothing special to do
     (void)kms;
 }
 
 void
-vwPlatform::eventKeyPressedOrReleased(os::Keycode keycode, os::KeyModState kms, bool pressState)
+appPlatform::eventKeyPressedOrReleased(os::Keycode keycode, os::KeyModState kms, bool pressState)
 {
     asserted(keycode >= os::KC_A && keycode < os::KC_KeyCount, (int)keycode);
 
@@ -366,19 +366,19 @@ vwPlatform::eventKeyPressedOrReleased(os::Keycode keycode, os::KeyModState kms, 
 }
 
 void
-vwPlatform::eventKeyPressed(os::Keycode keycode, os::KeyModState kms)
+appPlatform::eventKeyPressed(os::Keycode keycode, os::KeyModState kms)
 {
     eventKeyPressedOrReleased(keycode, kms, true);
 }
 
 void
-vwPlatform::eventKeyReleased(os::Keycode keycode, os::KeyModState kms)
+appPlatform::eventKeyReleased(os::Keycode keycode, os::KeyModState kms)
 {
     eventKeyPressedOrReleased(keycode, kms, false);
 }
 
 void
-vwPlatform::eventWheelScrolled(int x, int y, int steps, os::KeyModState kms)
+appPlatform::eventWheelScrolled(int x, int y, int steps, os::KeyModState kms)
 {
     (void)x;
     (void)y;
@@ -390,7 +390,7 @@ vwPlatform::eventWheelScrolled(int x, int y, int steps, os::KeyModState kms)
 }
 
 void
-vwPlatform::eventChar(uint16_t codepoint)
+appPlatform::eventChar(uint16_t codepoint)
 {
     ImGuiIO& io = ImGui::GetIO();
     if (codepoint != 0) { io.AddInputCharacter((uint16_t)codepoint); }
@@ -398,7 +398,7 @@ vwPlatform::eventChar(uint16_t codepoint)
 }
 
 void
-vwPlatform::eventButtonPressed(int buttonId, int x, int y, os::KeyModState kms)
+appPlatform::eventButtonPressed(int buttonId, int x, int y, os::KeyModState kms)
 {
     (void)kms;
     ImGuiIO& io                = ImGui::GetIO();
@@ -409,7 +409,7 @@ vwPlatform::eventButtonPressed(int buttonId, int x, int y, os::KeyModState kms)
 }
 
 void
-vwPlatform::eventButtonReleased(int buttonId, int x, int y, os::KeyModState kms)
+appPlatform::eventButtonReleased(int buttonId, int x, int y, os::KeyModState kms)
 {
     (void)kms;
     ImGuiIO& io                = ImGui::GetIO();
@@ -420,7 +420,7 @@ vwPlatform::eventButtonReleased(int buttonId, int x, int y, os::KeyModState kms)
 }
 
 void
-vwPlatform::eventMouseMotion(int x, int y)
+appPlatform::eventMouseMotion(int x, int y)
 {
     ImGuiIO& io          = ImGui::GetIO();
     io.MousePos          = ImVec2((float)x, (float)y);
