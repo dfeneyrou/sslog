@@ -64,12 +64,13 @@ class appMain
     bool loadSession();
 
     struct TextElem {
-        uint64_t         timestampUtcNs;
-        sslog::Level     level;
-        uint32_t         threadIdx;
-        uint32_t         categoryIdx;
-        std::string      message;
-        std::vector<int> valuePositions;
+        uint64_t             timestampUtcNs;
+        sslog::Level         level;
+        uint32_t             threadIdx;
+        uint32_t             categoryIdx;
+        std::string          message;
+        std::vector<int>     valuePositions;
+        std::vector<uint8_t> buffer;
     };
     struct TextView {
         uint32_t              uniqueId = 0;
@@ -89,8 +90,8 @@ class appMain
     };
     void                  addTextView(uint32_t id);
     void                  drawTexts();
-    void                  drawText(TextView& lv);
-    void                  prepareTextData(TextView& lv);
+    void                  drawText(TextView& tv);
+    void                  prepareTextData(TextView& tv);
     std::vector<TextView> _textViews;
 
     appPlatform*       _platform                = 0;
