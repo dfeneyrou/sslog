@@ -199,6 +199,7 @@ vwMain::drawSettings(void)
         ImGui::Text("UTC date (else localtime)");
         ImGui::TableNextColumn();
         ImGui::Checkbox("##UTC usage", &_settingsView.useUtc);
+        ImGui::Spacing();
 
         // Date format
         ImGui::TableNextColumn();
@@ -211,6 +212,7 @@ vwMain::drawSettings(void)
         if (ImGui::Combo("##DateFormat", &timeFormatInt, "ss.ns\0ss.µs\0hh:mm:ss.ns\0hh:mm:ss.µs\0\0")) {
             sv.timeFormat = TimeFormat{timeFormatInt};
         }
+        ImGui::PopItemWidth();
         ImGui::Spacing();
         ImGui::Spacing();
         ImGui::Spacing();
@@ -226,8 +228,17 @@ vwMain::drawSettings(void)
             if (draggedFontSize != _settingsView.fontSize) { _settingsView.fontSize = draggedFontSize; }
             draggedFontSize = -1;
         }
+        ImGui::Spacing();
+        ImGui::Spacing();
+        ImGui::Spacing();
 
-        ImGui::PopItemWidth();
+        // color seed
+        ImGui::TableNextColumn();
+        ImGui::Text("Random color seed");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(sliderWidth);
+        ImGui::DragInt("##Color seed", &_settingsView.colorSeed, 1.0f, 0, 1000, "%d",
+                       ImGuiSliderFlags_ClampOnInput | ImGuiSliderFlags_WrapAround);
 
         ImGui::EndTable();
     }
@@ -250,6 +261,27 @@ vwMain::vwMain(vwPlatform* platform, const bsString& filename) : _platform(platf
 
     os::setIcon(width, height, pixels);  // The array is owned by the OS layer now
     free(pixels);
+
+    // Palette is computed from a selection of 8 well separated (=for the eyes) hues
+    // Each hue provides 4 colors: bright saturated, bright pastel, dim saturated, dim pastel
+    constexpr float hues[8] = {40., 60., 96., 175., 210., 240., 280., 310.};  // In degrees
+    for (int i = 0; i < 32; ++i) {
+        int   i8 = i % 8, i16 = i % 16;
+        float r, g, b;
+
+        // Create the color from the hue modulo 8. Some adjustment are required due to perceptual
+        float h = hues[i8] / 360.f;
+        float s = ((i & 0x8) == 0) ? 1.0f : 0.5f;
+        float v = ((i & 0x10) == 0) ? 1.0f : 0.55f;
+        if (i < 16 && (i == 8 || i8 == 1 || i8 == 2 || i8 == 3))
+            v -= 0.2f;  // Yellow, green, cyan too bright
+        else if (i16 == 5 || i16 == 6 || i16 == 7)
+            s -= 0.1f;  // Dark blue, violet and magenta  are too saturated
+
+        // Build the dark and light colors from the average one
+        ImGui::ColorConvertHSVtoRGB(h, s, bsMin(1.0f, 1.2f * v), r, g, b);  // Boost a bit the value for light color
+        _colorPalette.push_back((ImU32)ImColor(r, g, b));
+    }
 
     // Process the filename parameter
     _filename = filename;
@@ -318,6 +350,7 @@ void
 vwMain::draw()
 {
     ImGui::PushFont(nullptr, _settingsView.fontSize);
+    _lastMouseMoveDurationUs = _platform->getLastMouseMoveDurationUs();
 
     // Create the global window
     ImGuiIO&    io    = ImGui::GetIO();

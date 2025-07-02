@@ -318,14 +318,17 @@ vwPlatform::eventKeyPressedOrReleased(os::Keycode keycode, os::KeyModState kms, 
     io.AddKeyEvent(ImGuiKey_ModSuper, kms.sys);
 
     switch (keycode) {
-        case os::KC_A:
-            io.AddKeyEvent(ImGuiKey_A, pressState);
-            break;
         case os::KC_Down:
             io.AddKeyEvent(ImGuiKey_DownArrow, pressState);
             break;
         case os::KC_Up:
             io.AddKeyEvent(ImGuiKey_UpArrow, pressState);
+            break;
+        case os::KC_Left:
+            io.AddKeyEvent(ImGuiKey_LeftArrow, pressState);
+            break;
+        case os::KC_Right:
+            io.AddKeyEvent(ImGuiKey_RightArrow, pressState);
             break;
         case os::KC_PageDown:
             io.AddKeyEvent(ImGuiKey_PageDown, pressState);
@@ -341,6 +344,12 @@ vwPlatform::eventKeyPressedOrReleased(os::Keycode keycode, os::KeyModState kms, 
             break;
         case os::KC_Escape:
             io.AddKeyEvent(ImGuiKey_Escape, pressState);
+            break;
+        case os::KC_Backspace:
+            io.AddKeyEvent(ImGuiKey_Backspace, pressState);
+            break;
+        case os::KC_Delete:
+            io.AddKeyEvent(ImGuiKey_Delete, pressState);
             break;
         default:
             break;

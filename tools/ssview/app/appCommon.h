@@ -14,6 +14,7 @@ constexpr ImU32 uDarkOrange = IM_COL32(160, 130, 40, 255);
 constexpr ImU32 uCyan       = IM_COL32(32, 192, 192, 255);
 constexpr ImU32 uRed        = IM_COL32(255, 32, 32, 255);
 constexpr ImU32 uBrightRed  = IM_COL32(255, 0, 0, 255);
+constexpr ImU32 uGreen      = IM_COL32(32, 255, 32, 255);
 constexpr ImU32 uLightGrey  = IM_COL32(240, 240, 240, 255);
 constexpr ImU32 uGrey       = IM_COL32(192, 192, 192, 255);
 constexpr ImU32 uGrey128    = IM_COL32(128, 128, 128, 255);

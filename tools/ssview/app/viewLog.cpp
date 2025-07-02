@@ -10,6 +10,7 @@ vwMain::addLogView(uint32_t id)
 {
     _logViews.push_back({});
     _logViews.back().uniqueId = id;
+    snprintf(_logViews.back().name, sizeof(_logViews.back().name), "Log");
 }
 
 void
@@ -19,6 +20,7 @@ vwMain::prepareLogData(LogView& lv)
     lv.isDataDirty = false;
     lv.cachedLogs.clear();
     lv.maxCategoryLength = 1;
+    lv.lengthFontSizeRef = ImGui::CalcTextSize("").y;
 
     // Build the filtering rules
     std::string                  errorMessage;
@@ -34,11 +36,13 @@ vwMain::prepareLogData(LogView& lv)
                                         &_logSession);
 
                 // Update statistics
-                int categoryWidth = ImGui::CalcTextSize(_logSession.getIndexedString(log.categoryIdx)).x;
+                float threadWidth = ImGui::CalcTextSize(_logSession.getIndexedString(log.threadIdx)).x;
+                if (threadWidth > lv.maxThreadLength) lv.maxThreadLength = threadWidth;
+                float categoryWidth = ImGui::CalcTextSize(_logSession.getIndexedString(log.categoryIdx)).x;
                 if (categoryWidth > lv.maxCategoryLength) lv.maxCategoryLength = categoryWidth;
 
                 // Store
-                lv.cachedLogs.push_back({log.timestampUtcNs - _originUtcNs, _logSession.getIndexedString(log.categoryIdx), filledFormat});
+                lv.cachedLogs.push_back({log.timestampUtcNs - _originUtcNs, log.level, log.threadIdx, log.categoryIdx, filledFormat});
 
                 return true;
             },
@@ -54,19 +58,19 @@ vwMain::drawLogs()
     int itemToRemoveIdx = -1;
 
     for (int logIdx = 0; logIdx < (int)_logViews.size(); ++logIdx) {
-        auto& logView = _logViews[logIdx];
+        auto& lv = _logViews[logIdx];
 
         char tmpStr[256];
-        snprintf(tmpStr, sizeof(tmpStr), "Log###%d", logView.uniqueId);
+        snprintf(tmpStr, sizeof(tmpStr), "%s###%d", lv.name, lv.uniqueId);
         bool isOpen = true;
 
-        if (logView.isNew) {
-            logView.isNew = false;
+        if (lv.isNew) {
+            lv.isNew = false;
             selectBestDockLocation(false, true);
         }
         if (ImGui::Begin(tmpStr, &isOpen,
                          ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNavInputs)) {
-            drawLog(logView);
+            drawLog(lv);
         }
         if (!isOpen) itemToRemoveIdx = logIdx;
         ImGui::End();
@@ -87,12 +91,71 @@ vwMain::drawLog(LogView& lv)
     char lastDateStr[256];
     lastDateStr[0] = 0;  // No previous displayed date
 
+    // Configuration bar
+    float       textBgY   = ImGui::GetWindowPos().y + ImGui::GetCursorPos().y;
+    const float padMenuX  = ImGui::GetStyle().FramePadding.x;
+    const ImU32 filterBg  = ImColor(ImGui::GetStyle().Colors[ImGuiCol_FrameBg]);
+    float       charWidth = ImGui::CalcTextSize("0").x;
+    float       offsetMenuX =
+        ImGui::GetStyle().ItemSpacing.x + padMenuX + charWidth * (float)getFormattedTimeStringCharQty(_settingsView.timeFormat);
+    float                 lengthFontSizeFactor         = ImGui::CalcTextSize("").y / lv.lengthFontSizeRef;
+    float                 maxLengthLevel               = ImGui::CalcTextSize("Critical").x;
+    constexpr ImU32       levelColors[SSLOG_LEVEL_QTY] = {uWhite, uWhite, uGreen, uYellow, uRed, uRed};
+    constexpr const char* levelStr[SSLOG_LEVEL_QTY]    = {"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "CRITICAL", ""};
+
+    // Bar background
+    DRAWLIST->AddRectFilled(
+        ImVec2(ImGui::GetWindowPos().x + ImGui::GetCursorPos().x, textBgY),
+        ImVec2(ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x, textBgY + ImGui::GetTextLineHeightWithSpacing()), uGrey48);
+
+    // Display: popup menu with checkboxes  for level, category, buffer content
+    float widthMenu = ImGui::CalcTextSize(" Display ").x;
+    DRAWLIST->AddRectFilled(
+        ImVec2(ImGui::GetWindowPos().x + offsetMenuX - padMenuX, textBgY),
+        ImVec2(ImGui::GetWindowPos().x + offsetMenuX + widthMenu + padMenuX, textBgY + ImGui::GetTextLineHeightWithSpacing()), filterBg);
+    ImGui::SameLine(offsetMenuX);
+    if (ImGui::Selectable(" Display ", false, 0, ImVec2(widthMenu, 0))) ImGui::OpenPopup("Display log menu");
+    if (ImGui::BeginPopup("Display log menu", ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::InputText("##logViewName", lv.name, sizeof(lv.name));
+        if (ImGui::IsItemHovered() && getLastMouseMoveDurationUs() > 300000) {
+            ImGui::SetTooltip("Name of the view, displayed in the title bar.");
+        }
+        ImGui::Checkbox("Level", &lv.doDisplayLevel);
+        ImGui::Checkbox("Thread", &lv.doDisplayThread);
+        ImGui::Checkbox("Category", &lv.doDisplayCategory);
+        ImGui::Checkbox("Buffer content", &lv.doDisplayBufferContent);
+        ImGui::EndPopup();
+    }
+    offsetMenuX += widthMenu;
+
+    ImGui::Separator();
+
+    /* Filtering:
+       1a) Start with only 1 filter
+       - Combo for min level (no max level)
+       - Combo for buffer: Any, only buffer, no buffer
+       - TBD: Category, thread, format / Positive & negative
+           => On two lines?
+       - multiple value fields => Input entry, space separated
+       - [+] sign at the end to add more rules
+
+       OR
+
+       1b) At the right of the display, have a "Filter" button which opens a floating window
+           => enough space for any config => all fields on the same line (array)
+
+     */
+    // Filter:  level: popup menu with checkboxes
+
+    // Filter binary buffers : popup menu with 2 text inputs: min & max buffer size
+
+    //
+
     ImGui::BeginChild("log", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
     prepareLogData(lv);
 
     const float fontHeight      = ImGui::GetTextLineHeightWithSpacing();
     const float textPixMargin   = ImGui::GetStyle().ItemSpacing.x;
-    const float charWidth       = ImGui::CalcTextSize("0").x;
     const float winX            = ImGui::GetWindowPos().x;
     const float winY            = ImGui::GetWindowPos().y;
     const float curScrollPosX   = ImGui::GetScrollX();
@@ -126,9 +189,27 @@ vwMain::drawLog(LogView& lv)
         snprintf(lastDateStr, sizeof(lastDateStr), "%s", timeStr);
         offsetX += charWidth * (float)getFormattedTimeStringCharQty(_settingsView.timeFormat);
 
+        // Display the level
+        if (lv.doDisplayLevel && (uint32_t)ci.level < SSLOG_LEVEL_QTY) {
+            DRAWLIST->AddText(ImVec2(offsetX, y), levelColors[(int)ci.level], levelStr[(int)ci.level]);
+            offsetX += charWidth * 4 + maxLengthLevel;
+        }
+
+        // Display the thread
+        if (lv.doDisplayThread) {
+            ImU32 color =
+                _colorPalette[((14695981039346656037ULL + ci.threadIdx + _settingsView.colorSeed) * 16777619ULL) % _colorPalette.size()];
+            DRAWLIST->AddText(ImVec2(offsetX, y), color, _logSession.getIndexedString(ci.threadIdx));
+            offsetX += charWidth * 4 + lv.maxThreadLength * lengthFontSizeFactor;
+        }
+
         // Display the category
-        DRAWLIST->AddText(ImVec2(offsetX, y), uWhite, ci.category.c_str());
-        offsetX += charWidth * 4 + lv.maxCategoryLength;
+        if (lv.doDisplayCategory) {
+            ImU32 color =
+                _colorPalette[((14695981039346656037ULL + ci.categoryIdx + _settingsView.colorSeed) * 16777619ULL) % _colorPalette.size()];
+            DRAWLIST->AddText(ImVec2(offsetX, y), color, _logSession.getIndexedString(ci.categoryIdx));
+            offsetX += charWidth * 4 + lv.maxCategoryLength * lengthFontSizeFactor;
+        }
 
         // Display the message
         DRAWLIST->AddText(ImVec2(offsetX, y), uWhite, ci.message.c_str());

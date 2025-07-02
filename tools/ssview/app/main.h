@@ -36,6 +36,7 @@ class vwMain  // @RENAME
     int  getFontSize(void) { return _settingsView.fontSize; }
 
    private:
+    // Private context
     enum class Phase : int { InitFont, WaitForFilename, InitiateFileLoading, LoadingFile, Active };
     std::atomic<Phase> _phase{Phase::InitFont};
     std::atomic<int>   _phaseCompletionFlag{0};
@@ -50,11 +51,11 @@ class vwMain  // @RENAME
     void drawAbout();
     void drawSettings();
 
-    // Other shared methods
-    int  getDisplayWidth();
-    int  getDisplayHeight();
-    void dirty();  // Force several frame of redrawing
-    int  getId(void) { return _generatorUniqueId++; }
+    int    getDisplayWidth();
+    int    getDisplayHeight();
+    void   dirty();  // Force several frame of redrawing
+    int    getId(void) { return _generatorUniqueId++; }
+    bsUs_t getLastMouseMoveDurationUs(void) const { return _lastMouseMoveDurationUs; }
 
     void openHelpTooltip(int uniqueId, const char* tooltipId);
     void displayHelpText(const char* helpStr);
@@ -62,17 +63,26 @@ class vwMain  // @RENAME
     bool loadSession();
 
     struct LogElem {
-        uint64_t    timestampUtcNs;
-        std::string category;
-        std::string message;
+        uint64_t     timestampUtcNs;
+        sslog::Level level;
+        uint32_t     threadIdx;
+        uint32_t     categoryIdx;
+        std::string  message;
     };
     struct LogView {
-        uint32_t       uniqueId          = 0;
-        int            maxCategoryLength = 0;
-        bool           isDataDirty       = true;
-        bool           isNew             = true;
-        int64_t        rangeSelStartNs   = -1;
-        float          rangeSelStartY    = 0.;
+        uint32_t       uniqueId = 0;
+        char           name[64];
+        float          maxCategoryLength      = 0;
+        float          maxThreadLength        = 0;
+        float          lengthFontSizeRef      = 1.;
+        bool           isDataDirty            = true;
+        bool           isNew                  = true;
+        int64_t        rangeSelStartNs        = -1;
+        float          rangeSelStartY         = 0.;
+        bool           doDisplayLevel         = true;
+        bool           doDisplayThread        = true;
+        bool           doDisplayCategory      = true;
+        bool           doDisplayBufferContent = true;
         bsVec<LogElem> cachedLogs;
     };
     void                 addLogView(uint32_t id);
@@ -81,9 +91,12 @@ class vwMain  // @RENAME
     void                 prepareLogData(LogView& lv);
     std::vector<LogView> _logViews;
 
-    vwPlatform* _platform          = 0;
-    uint32_t    _generatorUniqueId = 1;
+    vwPlatform*        _platform                = 0;
+    uint32_t           _generatorUniqueId       = 1;
+    bsUs_t             _lastMouseMoveDurationUs = 0;
+    std::vector<ImU32> _colorPalette;
 
+    // Log session fields
     bsString              _filename;
     sslogread::LogSession _logSession;
     os::Date              _originDate;
@@ -102,6 +115,7 @@ class vwMain  // @RENAME
         TimeFormat timeFormat = TimeFormat::HhMmSsNanosecond;
         bool       useUtc     = false;
         int        fontSize   = FontSizeDefault;
+        int        colorSeed  = 0;
     };
     SettingsView _settingsView;
 
