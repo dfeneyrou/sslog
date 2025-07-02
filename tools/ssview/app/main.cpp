@@ -75,7 +75,7 @@ appMain::drawMainMenuBar()
             if (ImGui::MenuItem("Load logs", NULL, false, _phase == Phase::WaitForFilename)) { _fileDialogLoadLogs->open(_lastPath); }
 
             if (ImGui::MenuItem("Clear", NULL, false, _phase == Phase::Active)) {
-                _logViews.clear();
+                _textViews.clear();
                 _filename = "";
                 _phase    = Phase::WaitForFilename;
             }
@@ -86,7 +86,7 @@ appMain::drawMainMenuBar()
         }
 
         if (ImGui::BeginMenu("Windows")) {
-            if (ImGui::MenuItem("New log view")) { addLogView(getId()); }
+            if (ImGui::MenuItem("New text view")) { addTextView(getId()); }
 
             ImGui::Separator();
             ImGui::MenuItem("Settings", NULL, &_settingsView.isOpen);
@@ -204,7 +204,7 @@ appMain::drawSettings(void)
         // Date format
         ImGui::TableNextColumn();
         ImGui::Text("Date format");
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The format of the date used in Text, Log and Search views.");
+        if (ImGui::IsItemHovered()) { ImGui::SetTooltip("The format of the date used in text views."); }
         ImGui::TableNextColumn();
         ImGui::AlignTextToFramePadding();
         ImGui::PushItemWidth(sliderWidth);
@@ -386,13 +386,13 @@ appMain::draw()
                 _phase    = Phase::WaitForFilename;
                 break;
             }
-            addLogView(getId());
+            addTextView(getId());
             _phase = Phase::Active;
             break;
         }
 
         case Phase::Active:
-            drawLogs();
+            drawTexts();
             break;
 
         case Phase::InitFont:

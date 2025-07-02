@@ -6,34 +6,35 @@
 #include "main.h"
 
 void
-appMain::addLogView(uint32_t id)
+appMain::addTextView(uint32_t id)
 {
-    _logViews.push_back({});
-    _logViews.back().uniqueId = id;
-    snprintf(_logViews.back().name, sizeof(_logViews.back().name), "Log");
+    _textViews.push_back({});
+    _textViews.back().uniqueId = id;
+    snprintf(_textViews.back().name, sizeof(_textViews.back().name), "Text");
 }
 
 void
-appMain::prepareLogData(LogView& lv)
+appMain::prepareTextData(TextView& lv)
 {
     if (!lv.isDataDirty) { return; }
     lv.isDataDirty = false;
-    lv.cachedLogs.clear();
+    lv.cachedElems.clear();
     lv.maxCategoryLength = 1;
     lv.lengthFontSizeRef = ImGui::CalcTextSize("").y;
 
     // Build the filtering rules
     std::string                  errorMessage;
     std::vector<sslogread::Rule> rules;
+    std::vector<int>             valuePositions;
 
     // Collect the logs
     if (!_logSession.query(
             rules,
-            [this, &lv](int /*ruleIdx*/, const sslogread::LogStruct& log) {
+            [this, &lv, &valuePositions](int /*ruleIdx*/, const sslogread::LogStruct& log) {
                 // Format the string with arguments (=custom vsnprintf with our argument list, see below)
                 char filledFormat[1024];
                 sslogread::vsnprintfLog(filledFormat, sizeof(filledFormat), _logSession.getIndexedString(log.formatIdx), log.args,
-                                        &_logSession);
+                                        &_logSession, &valuePositions);
 
                 // Update statistics
                 float threadWidth = ImGui::CalcTextSize(_logSession.getIndexedString(log.threadIdx)).x;
@@ -42,7 +43,8 @@ appMain::prepareLogData(LogView& lv)
                 if (categoryWidth > lv.maxCategoryLength) lv.maxCategoryLength = categoryWidth;
 
                 // Store
-                lv.cachedLogs.push_back({log.timestampUtcNs - _originUtcNs, log.level, log.threadIdx, log.categoryIdx, filledFormat});
+                lv.cachedElems.push_back({log.timestampUtcNs - _originUtcNs, log.level, log.threadIdx, log.categoryIdx, filledFormat,
+                                          std::move(valuePositions)});
 
                 return true;
             },
@@ -52,13 +54,13 @@ appMain::prepareLogData(LogView& lv)
 }
 
 void
-appMain::drawLogs()
+appMain::drawTexts()
 {
     if (_phase != Phase::Active) { return; }
     int itemToRemoveIdx = -1;
 
-    for (int logIdx = 0; logIdx < (int)_logViews.size(); ++logIdx) {
-        auto& lv = _logViews[logIdx];
+    for (int textIdx = 0; textIdx < (int)_textViews.size(); ++textIdx) {
+        auto& lv = _textViews[textIdx];
 
         char tmpStr[256];
         snprintf(tmpStr, sizeof(tmpStr), "%s###%d", lv.name, lv.uniqueId);
@@ -70,38 +72,36 @@ appMain::drawLogs()
         }
         if (ImGui::Begin(tmpStr, &isOpen,
                          ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNavInputs)) {
-            drawLog(lv);
+            drawText(lv);
         }
-        if (!isOpen) itemToRemoveIdx = logIdx;
+        if (!isOpen) itemToRemoveIdx = textIdx;
         ImGui::End();
     }
 
     // Remove profile if needed
     if (itemToRemoveIdx >= 0) {
-        _logViews.erase(_logViews.begin() + itemToRemoveIdx);
+        _textViews.erase(_textViews.begin() + itemToRemoveIdx);
         dirty();
         // setFullScreenView(-1);
     }
 }
 
 void
-appMain::drawLog(LogView& lv)
+appMain::drawText(TextView& lv)
 {
-    char tmpStr[256];
-    char lastDateStr[256];
-    lastDateStr[0] = 0;  // No previous displayed date
-
-    // Configuration bar
-    float       textBgY   = ImGui::GetWindowPos().y + ImGui::GetCursorPos().y;
-    const float padMenuX  = ImGui::GetStyle().FramePadding.x;
-    const ImU32 filterBg  = ImColor(ImGui::GetStyle().Colors[ImGuiCol_FrameBg]);
-    float       charWidth = ImGui::CalcTextSize("0").x;
-    float       offsetMenuX =
-        ImGui::GetStyle().ItemSpacing.x + padMenuX + charWidth * (float)getFormattedTimeStringCharQty(_settingsView.timeFormat);
-    float                 lengthFontSizeFactor         = ImGui::CalcTextSize("").y / lv.lengthFontSizeRef;
-    float                 maxLengthLevel               = ImGui::CalcTextSize("Critical").x;
     constexpr ImU32       levelColors[SSLOG_LEVEL_QTY] = {uWhite, uWhite, uGreen, uYellow, uRed, uRed};
     constexpr const char* levelStr[SSLOG_LEVEL_QTY]    = {"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "CRITICAL", ""};
+
+    // Configuration bar
+    // =================
+
+    float       textBgY              = ImGui::GetWindowPos().y + ImGui::GetCursorPos().y;
+    const float padMenuX             = ImGui::GetStyle().FramePadding.x;
+    const ImU32 filterBg             = ImColor(ImGui::GetStyle().Colors[ImGuiCol_FrameBg]);
+    float       charWidth            = ImGui::CalcTextSize("0").x;
+    float       lengthFontSizeFactor = ImGui::CalcTextSize("").y / lv.lengthFontSizeRef;
+    float       maxLengthLevel       = ImGui::CalcTextSize("Critical").x;
+    float       offsetMenuX = ImGui::GetStyle().ItemSpacing.x + padMenuX + maxLengthLevel;  // maxLengthLevel is roughly the right padding
 
     // Bar background
     DRAWLIST->AddRectFilled(
@@ -114,9 +114,9 @@ appMain::drawLog(LogView& lv)
         ImVec2(ImGui::GetWindowPos().x + offsetMenuX - padMenuX, textBgY),
         ImVec2(ImGui::GetWindowPos().x + offsetMenuX + widthMenu + padMenuX, textBgY + ImGui::GetTextLineHeightWithSpacing()), filterBg);
     ImGui::SameLine(offsetMenuX);
-    if (ImGui::Selectable(" Display ", false, 0, ImVec2(widthMenu, 0))) ImGui::OpenPopup("Display log menu");
-    if (ImGui::BeginPopup("Display log menu", ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::InputText("##logViewName", lv.name, sizeof(lv.name));
+    if (ImGui::Selectable(" Display ", false, 0, ImVec2(widthMenu, 0))) ImGui::OpenPopup("Display text menu");
+    if (ImGui::BeginPopup("Display text menu", ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::InputText("##textViewName", lv.name, sizeof(lv.name));
         if (ImGui::IsItemHovered() && getLastMouseMoveDurationUs() > 300000) {
             ImGui::SetTooltip("Name of the view, displayed in the title bar.");
         }
@@ -145,14 +145,15 @@ appMain::drawLog(LogView& lv)
            => enough space for any config => all fields on the same line (array)
 
      */
-    // Filter:  level: popup menu with checkboxes
 
-    // Filter binary buffers : popup menu with 2 text inputs: min & max buffer size
+    // Display of the logs
+    // ===================
 
-    //
-
-    ImGui::BeginChild("log", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
-    prepareLogData(lv);
+    char tmpStr[256];
+    char lastDateStr[256];
+    lastDateStr[0] = 0;  // No previous displayed date
+    ImGui::BeginChild("text", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+    prepareTextData(lv);
 
     const float fontHeight      = ImGui::GetTextLineHeightWithSpacing();
     const float textPixMargin   = ImGui::GetStyle().ItemSpacing.x;
@@ -167,8 +168,8 @@ appMain::drawLog(LogView& lv)
 
     float   maxOffsetX     = winX;
     float   y              = winY;
-    float   yEnd           = winY + ImGui::GetWindowSize().y + fontHeight;  // Skip the invisible log part after the window end
-    int     logStartIdx    = curScrollPosY / fontHeight;                    // Skip the invisible log part before the window start
+    float   yEnd           = winY + ImGui::GetWindowSize().y + fontHeight;     // Skip the invisible log part after the window end
+    int     logStartIdx    = (curScrollPosY + 0.5 * fontHeight) / fontHeight;  // Skip the invisible log part before the window start
     int64_t dayOriginUtcNs = _dayOriginUtcNs + (_settingsView.useUtc ? -_tzOffsetNs : 0);
 
     int64_t newMouseTimeNs      = -1;
@@ -176,8 +177,8 @@ appMain::drawLog(LogView& lv)
     float   mouseTimeBestY      = -1.;
 
     // Loop on logs
-    for (int logIdx = logStartIdx; logIdx < (int)lv.cachedLogs.size() && y < yEnd; ++logIdx) {
-        const LogElem& ci = lv.cachedLogs[logIdx];
+    for (int logIdx = logStartIdx; logIdx < (int)lv.cachedElems.size() && y < yEnd; ++logIdx) {
+        const TextElem& ci = lv.cachedElems[logIdx];
 
         // Display the date
         float       offsetX = winX + textPixMargin - curScrollPosX;
@@ -213,6 +214,28 @@ appMain::drawLog(LogView& lv)
 
         // Display the message
         DRAWLIST->AddText(ImVec2(offsetX, y), uWhite, ci.message.c_str());
+
+        // Override in color the argument values and names
+        asserted((ci.valuePositions.size() & 1) == 0, "The value position array must be even", ci.valuePositions.size());
+        for (auto i = 0; i < ci.valuePositions.size(); i += 2) {
+            // Find positions
+            const char* sStart     = ci.message.c_str();
+            const char* valueStart = sStart + ci.valuePositions[i];
+            const char* valueEnd   = sStart + ci.valuePositions[i + 1];
+            const char* nameEnd    = bsMax(sStart, valueStart - 1);
+            while (nameEnd > sStart && (*nameEnd == '_' || *nameEnd == '=' || *nameEnd == ':' || *nameEnd == '-')) --nameEnd;
+            ++nameEnd;
+            const char* nameStart = nameEnd;
+            while (nameStart > sStart && *nameStart != ' ') --nameStart;
+            ++nameStart;
+
+            // Write in color
+            float redrawOffset = ImGui::CalcTextSize(sStart, valueStart).x;
+            DRAWLIST->AddText(ImVec2(offsetX + redrawOffset, y), uCyan, valueStart, valueEnd);
+
+            redrawOffset = ImGui::CalcTextSize(sStart, nameStart).x;
+            DRAWLIST->AddText(ImVec2(offsetX + redrawOffset, y), uYellow, nameStart, nameEnd);
+        }
         offsetX += ImGui::CalcTextSize(ci.message.c_str()).x;
 
         if (isWindowHovered && mouseY > y) newMouseTimeNs = ci.timestampUtcNs;
@@ -268,7 +291,7 @@ appMain::drawLog(LogView& lv)
     }
     if (newMouseTimeNs >= 0) _mouseTimeNs = newMouseTimeNs;
 
-    ImGui::SetCursorPos(ImVec2(maxOffsetX - winX + curScrollPosX, lv.cachedLogs.size() * fontHeight));
+    ImGui::SetCursorPos(ImVec2(maxOffsetX - winX + curScrollPosX, (lv.cachedElems.size() + 1) * fontHeight));
     ImGui::Dummy(ImVec2(0, 0));  // Need this dummy item after setting the cursor position and extending the window
     ImGui::EndChild();
 }

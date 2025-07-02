@@ -62,34 +62,35 @@ class appMain
     void displayHelpTooltip(int uniqueId, const char* tooltipId, const char* helpStr);
     bool loadSession();
 
-    struct LogElem {
-        uint64_t     timestampUtcNs;
-        sslog::Level level;
-        uint32_t     threadIdx;
-        uint32_t     categoryIdx;
-        std::string  message;
+    struct TextElem {
+        uint64_t         timestampUtcNs;
+        sslog::Level     level;
+        uint32_t         threadIdx;
+        uint32_t         categoryIdx;
+        std::string      message;
+        std::vector<int> valuePositions;
     };
-    struct LogView {
-        uint32_t       uniqueId = 0;
-        char           name[64];
-        float          maxCategoryLength      = 0;
-        float          maxThreadLength        = 0;
-        float          lengthFontSizeRef      = 1.;
-        bool           isDataDirty            = true;
-        bool           isNew                  = true;
-        int64_t        rangeSelStartNs        = -1;
-        float          rangeSelStartY         = 0.;
-        bool           doDisplayLevel         = true;
-        bool           doDisplayThread        = true;
-        bool           doDisplayCategory      = true;
-        bool           doDisplayBufferContent = true;
-        bsVec<LogElem> cachedLogs;
+    struct TextView {
+        uint32_t        uniqueId = 0;
+        char            name[64];
+        float           maxCategoryLength      = 0;
+        float           maxThreadLength        = 0;
+        float           lengthFontSizeRef      = 1.;
+        bool            isDataDirty            = true;
+        bool            isNew                  = true;
+        int64_t         rangeSelStartNs        = -1;
+        float           rangeSelStartY         = 0.;
+        bool            doDisplayLevel         = true;
+        bool            doDisplayThread        = true;
+        bool            doDisplayCategory      = true;
+        bool            doDisplayBufferContent = true;
+        bsVec<TextElem> cachedElems;
     };
-    void                 addLogView(uint32_t id);
-    void                 drawLogs();
-    void                 drawLog(LogView& lv);
-    void                 prepareLogData(LogView& lv);
-    std::vector<LogView> _logViews;
+    void                  addTextView(uint32_t id);
+    void                  drawTexts();
+    void                  drawText(TextView& lv);
+    void                  prepareTextData(TextView& lv);
+    std::vector<TextView> _textViews;
 
     appPlatform*       _platform                = 0;
     uint32_t           _generatorUniqueId       = 1;
@@ -123,6 +124,4 @@ class appMain
     appFileDialog* _fileDialogLoadLogs = nullptr;
     bsString       _lastPath;
     std::string    _fileLoadErrorMsg;
-
-    // Log window
 };

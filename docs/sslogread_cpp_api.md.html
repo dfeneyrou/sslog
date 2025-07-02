@@ -197,7 +197,7 @@ if(!session->query({}, [session](const sslogread::LogStruct& log) {
 
                  // Format the string with arguments (=custom vsnprintf with our argument list, see below)
                  char filledFormat[1024];
-                 sslogread::vsnprintf(filledFormat, sizeof(filledFormat), session->getIndexedString(log.formatIdx), log.args, session);
+                 sslogread::vsnprintfLog(filledFormat, sizeof(filledFormat), session->getIndexedString(log.formatIdx), log.args, session);
 
                  // Some display on console
                  printf("[timestampUtcNs=%lu  thread=%s  category=%s  buffer=%s] %s\n",
@@ -509,7 +509,7 @@ for(int level=0; level<7; ++level) {
 
 Some helpers are available for formatting logs.
 
-### Custom vsnprintf
+### vsnprintfLog
 
 This function is an adapted version of the standard C function to `sslog` list of arguments.
 
@@ -517,16 +517,19 @@ This function is an adapted version of the standard C function to `sslog` list o
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
 #include "sslogread/utils.h"
-int vsnprintf(char* buf, int count, char const* fmt, const std::vector<Arg>& va, const LogSession* session);
+int vsnprintfLog(char* buf, int count, char const* fmt, const std::vector<Arg>& va, const LogSession* session,
+                 std::vector<int>* valuePositions = nullptr));
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-| Parameter name | Type                      | Description                                                        |
-|----------------|---------------------------|--------------------------------------------------------------------|
-| `buf`          | `char*`                   | Output char buffer containing the resulting string                 |
-| `count`        | `int`                     | Maximum size of the output char buffer                             |
-| `fmt`          | `char const*`             | Format string                                                      |
-| `va`           | `const std::vector<Arg>&` | `sslog` list of arguments                                          |
-| `session`      | `const LogSession*`       | Session object (to provide real strings from string value indexes) |
+| Parameter name   | Type                      | Description                                                                     |
+|------------------|---------------------------|---------------------------------------------------------------------------------|
+| `buf`            | `char*`                   | Output char buffer containing the resulting string                              |
+| `count`          | `int`                     | Maximum size of the output char buffer                                          |
+| `fmt`            | `char const*`             | Format string                                                                   |
+| `va`             | `const std::vector<Arg>&` | `sslog` list of arguments                                                       |
+| `session`        | `const LogSession*`       | Session object (to provide real strings from string value indexes)              |
+| `valuePositions` | `std::vector<int>*`       | If non null, the array contains the start and end position of each filled value |
+
 
 ##### Example
 
@@ -536,7 +539,7 @@ std::string errorMessage;
 if(!session->query({}, [session](const sslogread::LogStruct& log) {
                  // Format the string with arguments
                  char logContent[1024];
-                 sslogread::vsnprintf(logContent, sizeof(logContent), session->getIndexedString(log.formatIdx), log.args, session);
+                 sslogread::vsnprintfLog(logContent, sizeof(logContent), session->getIndexedString(log.formatIdx), log.args, session);
 
                  // Some display on console
                  printf("[timestampUtcNs=%lu  thread=%s  category=%s  buffer=%s] %s\n",
@@ -591,7 +594,7 @@ For the `format` method, the parameters are:
 | `level`             | `uint32_t`    | Log level                                                    |
 | `threadName`        | `const char*` | Log thread name                                              |
 | `category`          | `const char*` | Log category                                                 |
-| `logContent`        | `const char*` | Log filled format string (see [vsnprintf](#customvsnprintf)) |
+| `logContent`        | `const char*` | Log filled format string (see [vsnprintfLog](#vsnprintflog)) |
 | `addEndOfLine`      | `bool`        | If `true`, adds an endline (`\n` or `\r\n`)                  |
 
 ##### Example
@@ -604,7 +607,7 @@ tf.init("[%L] [%Y-%m-%dT%H:%M:%S.%f%z] [%c] [thread %t] %v%Q", false, true); // 
 if(!session->query({}, [session, &tf](const sslogread::LogStruct& log) {
                  // Fill the format string
                  char logContent[1024];
-                 sslogread::vsnprintf(logContent, sizeof(logContent), session->getIndexedString(log.formatIdx), log.args, session);
+                 sslogread::vsnprintfLog(logContent, sizeof(logContent), session->getIndexedString(log.formatIdx), log.args, session);
 
                  // Format the string with the different log components
                  char logBuffer[1024];
