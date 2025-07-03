@@ -111,7 +111,7 @@ struct Rule {
     std::string  format;
     std::vector<std::string> arguments;
     uint32_t     bufferSizeMin = 0;
-    uint32_t     bufferSizeMax = 0xFFFFFFFF;
+    uint32_t     bufferSizeMax = 65535;
 
     std::string  noCategory;
     std::string  noThread;
@@ -119,19 +119,19 @@ struct Rule {
 };
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-| Parameter name      | Type                       | Description                                                            | Default (accept all) |
-|---------------------|----------------------------|------------------------------------------------------------------------|----------------------|
-| `levelMin`          | `sslog::Level`             | The minimum log level                                                  | sslog::Level::trace  |
-| `levelMax`          | `sslog::Level`             | The maximum log level (`off` is above all)                             | sslog::Level::off    |
-| `category`          | `std::string`              | Filtering-in pattern on category                                       | empty                |
-| `thread`            | `std::string`              | Filtering-in pattern on thread name                                    | empty                |
-| `format`            | `std::string`              | Filtering-in pattern on format string                                  | empty                |
-| `bufferSizeMin`     | `uint32_t`                 | Filtering-in if binary buffer length is equal or above                 | 0                    |
-| `bufferSizeMax`     | `uint32_t`                 | Filtering-in if buffer length is equal or below                        | `maximum size (4GB)` |
-| `arguments`         | `std::vector<std::string>` | Filtering-in on arguments names and value <br> (!) No pattern matching | empty                |
-| `noCategory`        | `std::string`              | Filtering-out pattern on category                                      | empty                |
-| `noThread`          | `std::string`              | Filtering-out pattern on thread name                                   | empty                |
-| `noFormat`          | `std::string`              | Filtering-out pattern on format string                                 | empty                |
+| Parameter name  | Type                       | Description                                                            | Default (accept all)   |
+|-----------------|----------------------------|------------------------------------------------------------------------|------------------------|
+| `levelMin`      | `sslog::Level`             | The minimum log level (included)                                       | sslog::Level::trace    |
+| `levelMax`      | `sslog::Level`             | The maximum log level (included)                                       | sslog::Level::critical |
+| `category`      | `std::string`              | Filtering-in pattern on category                                       | empty                  |
+| `thread`        | `std::string`              | Filtering-in pattern on thread name                                    | empty                  |
+| `format`        | `std::string`              | Filtering-in pattern on format string                                  | empty                  |
+| `bufferSizeMin` | `uint32_t`                 | Filtering-in if binary buffer length is equal or above                 | 0                      |
+| `bufferSizeMax` | `uint32_t`                 | Filtering-in if buffer length is equal or below                        | 65535                  |
+| `arguments`     | `std::vector<std::string>` | Filtering-in on arguments names and value <br> (!) No pattern matching | empty                  |
+| `noCategory`    | `std::string`              | Filtering-out pattern on category                                      | empty                  |
+| `noThread`      | `std::string`              | Filtering-out pattern on thread name                                   | empty                  |
+| `noFormat`      | `std::string`              | Filtering-out pattern on format string                                 | empty                  |
 
 !!! tip
     Important points about filtering on arguments:

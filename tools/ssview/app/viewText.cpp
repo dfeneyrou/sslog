@@ -22,14 +22,11 @@ appMain::prepareTextData(TextView& tv)
     tv.maxCategoryLength = 1;
     tv.lengthFontSizeRef = ImGui::CalcTextSize("").y;
 
-    // Build the filtering rules
-    std::string                  errorMessage;
-    std::vector<sslogread::Rule> rules;
-    std::vector<int>             valuePositions;
-
     // Collect the logs
+    std::string      errorMessage;
+    std::vector<int> valuePositions;
     if (!_logSession.query(
-            rules,
+            tv.rules,
             [this, &tv, &valuePositions](int /*ruleIdx*/, const sslogread::LogStruct& log) {
                 // Format the string with arguments (=custom vsnprintf with our argument list, see below)
                 char filledFormat[1024];
@@ -89,8 +86,16 @@ appMain::drawTexts()
 void
 appMain::drawText(TextView& tv)
 {
-    constexpr ImU32       levelColors[SSLOG_LEVEL_QTY] = {uWhite, uWhite, uGreen, uYellow, uRed, uRed};
-    constexpr const char* levelStr[SSLOG_LEVEL_QTY]    = {"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "CRITICAL", ""};
+    constexpr ImU32                     levelColors[SSLOG_LEVEL_QTY] = {uWhite, uWhite, uGreen, uYellow, uRed, uRed};
+    constexpr const char*               levelStr[SSLOG_LEVEL_QTY]    = {"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "CRITICAL", ""};
+    char                                tmpStr[256];
+    static std::vector<sslogread::Rule> rulesUnderWork;
+
+    // Ensure at least one rule (for filter configuration)
+    if (tv.rules.empty()) { tv.rules.push_back({}); }
+
+#define TEXT_TOOLTIP(message) \
+    if (ImGui::IsItemHovered() && getLastMouseMoveDurationUs() > 300000) { ImGui::SetTooltip(message); }
 
     // Configuration bar
     // =================
@@ -119,9 +124,7 @@ appMain::drawText(TextView& tv)
     if (ImGui::Selectable(" Display ", false, 0, ImVec2(widthMenu, 0))) ImGui::OpenPopup("Display text menu");
     if (ImGui::BeginPopup("Display text menu", ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::InputText("##textViewName", tv.name, sizeof(tv.name));
-        if (ImGui::IsItemHovered() && getLastMouseMoveDurationUs() > 300000) {
-            ImGui::SetTooltip("Name of the view, displayed in the title bar.");
-        }
+        TEXT_TOOLTIP("Name of the view, displayed in the title bar.");
         ImGui::Checkbox("Level", &tv.doDisplayLevel);
         ImGui::Checkbox("Thread", &tv.doDisplayThread);
         ImGui::Checkbox("Category", &tv.doDisplayCategory);
@@ -130,45 +133,221 @@ appMain::drawText(TextView& tv)
     }
     offsetMenuX += widthMenu + 8.f * padMenuX;
 
-    // Filter: popup menu with complex API
+    // Filter: modal popup menu
     widthMenu = ImGui::CalcTextSize(" Filter ").x;
     DRAWLIST->AddRectFilled(
         ImVec2(ImGui::GetWindowPos().x + offsetMenuX - padMenuX, textBgY),
         ImVec2(ImGui::GetWindowPos().x + offsetMenuX + widthMenu + padMenuX, textBgY + ImGui::GetTextLineHeightWithSpacing()), filterBg);
     ImGui::SameLine(offsetMenuX);
-    if (ImGui::Selectable(" Filter ", false, 0, ImVec2(widthMenu, 0))) ImGui::OpenPopup("Filter text menu");
-    if (ImGui::BeginPopup("Filter text menu", ImGuiWindowFlags_AlwaysAutoResize)) {
-        // @TODO
-        ImGui::Checkbox("Buffer content", &tv.doDisplayBufferContent);
-
-        ImGui::EndPopup();
+    if (ImGui::Selectable(" Filter ", false, 0, ImVec2(widthMenu, 0))) {
+        ImGui::OpenPopup("Log filtering rules");
+        rulesUnderWork = tv.rules;  // Copy current rules as a start point
     }
     offsetMenuX += widthMenu + 8.f * padMenuX;
 
-    /* Filtering:
-       1a) Start with only 1 filter
-       - Combo for min level (no max level)
-       - Combo for buffer: Any, only buffer, no buffer
-       - TBD: Category, thread, format / Positive & negative
-           => On two lines?
-       - multiple value fields => Input entry, space separated
-       - [+] sign at the end to add more rules
+    if (ImGui::BeginPopupModal("Log filtering rules", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        int ruleToRemoveIdx = -1;
+        int ruleToAddIdx    = -1;
+        ImGui::Text(
+            "All criteria must match inside a rule (logical AND inside a rule).         "
+            "One matching rule is enough (logical OR between rules).         "
+            "Hover on criteria names to get explanations and examples");
+        ImGui::Spacing();
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+        ImGui::Spacing();
 
-       OR
+        // Loop on rules
+        for (uint32_t ruleIdx = 0; ruleIdx < rulesUnderWork.size(); ++ruleIdx) {
+            sslogread::Rule& rule = rulesUnderWork[ruleIdx];
+            ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, charWidth * 0.25f);
+            ImGui::PushItemWidth(maxLengthLevel * 2.0);
+            ImGui::PushID(ruleIdx);
 
-       1b) At the right of the display, have a "Filter" button which opens a floating window
-           => enough space for any config => all fields on the same line (array)
+            // Level
+            int levelMin = (int)rule.levelMin;
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Min level:");
+            TEXT_TOOLTIP("Minimum log level (included)");
+            ImGui::SameLine();
+            if (ImGui::Combo("##Min level", &levelMin, "Trace\0Debug\0Info\0Warning\0Error\0Critical\0\0")) {
+                rule.levelMin = sslog::Level{levelMin};
+                if ((int)rule.levelMax < levelMin) { rule.levelMax = sslog::Level{levelMin}; }
+            }
+            ImGui::SameLine(0., charWidth * 2.f);
+            int levelMax = (int)rule.levelMax;
+            ImGui::Text("Max level:");
+            TEXT_TOOLTIP("Maximum log level (included)");
+            ImGui::SameLine();
+            if (ImGui::Combo("##Max level", &levelMax, "Trace\0Debug\0Info\0Warning\0Error\0Critical\0\0")) {
+                rule.levelMax = sslog::Level{levelMax};
+                if ((int)rule.levelMin > levelMax) { rule.levelMin = sslog::Level{levelMax}; }
+            }
 
-     */
+            // Category
+            ImGui::SameLine(0., charWidth * 2.f);
+            snprintf(tmpStr, sizeof(tmpStr), "%s", rule.category.c_str());
+            float categoryPosX = ImGui::GetCursorPos().x;
+            ImGui::Text("Category:");
+            TEXT_TOOLTIP(
+                "Filter-in category pattern which shall match exactly, wildcard accepted.\nOnly one pattern.\nEx: 'Engine/config' or "
+                "'pipe*/graphic*'");
+            ImGui::SameLine(categoryPosX + ImGui::CalcTextSize("No category:").x + charWidth * 0.25f);
+            if (ImGui::InputText("##Category", tmpStr, sizeof(tmpStr))) { rule.category = tmpStr; }
 
-    ImGui::Separator();
+            // Thread
+            ImGui::SameLine(0., charWidth * 2.f);
+            snprintf(tmpStr, sizeof(tmpStr), "%s", rule.thread.c_str());
+            float threadPosX = ImGui::GetCursorPos().x;
+            ImGui::Text("Thread:");
+            TEXT_TOOLTIP(
+                "Filter-in thread pattern which shall match exactly, wildcard accepted.\nOnly one pattern.\nEx: 'main' or '*/worker*'");
+            ImGui::SameLine(threadPosX + ImGui::CalcTextSize("No thread:").x + charWidth * 0.25f);
+            if (ImGui::InputText("##Thread", tmpStr, sizeof(tmpStr))) { rule.thread = tmpStr; }
+
+            // Format
+            ImGui::SameLine(0., charWidth * 2.f);
+            snprintf(tmpStr, sizeof(tmpStr), "%s", rule.format.c_str());
+            float formatPosX = ImGui::GetCursorPos().x;
+            ImGui::Text("Format:");
+            TEXT_TOOLTIP(
+                "Filter-in format pattern which shall match exactly, wildcard accepted.\nOnly one pattern.\nEx: '* independent of*'");
+            ImGui::SameLine(formatPosX + ImGui::CalcTextSize("No format:").x + charWidth * 0.25f);
+            if (ImGui::InputText("##Format", tmpStr, sizeof(tmpStr))) { rule.format = tmpStr; }
+
+            // Arguments
+            ImGui::SameLine(0., charWidth * 2.f);
+            tmpStr[0]  = 0;
+            char* p    = tmpStr;
+            char* pEnd = tmpStr + sizeof(tmpStr);
+            for (uint32_t i = 0; i < rule.arguments.size(); ++i) {
+                if (i > 0) { p += snprintf(p, pEnd - p, " "); }
+                p += snprintf(p, pEnd - p, "%s", rule.arguments[i].c_str());
+                if (p > pEnd) { p = pEnd; }
+            }
+            ImGui::Text("Arguments:");
+            TEXT_TOOLTIP(
+                "Space separated argument names (multiple accepted), optionally with a value expression.\nNames and values shall match "
+                "exactly (no wildcard).\nEx: 'health index=14 size<=1500 name=Gert");
+            ImGui::SameLine();
+            if (ImGui::InputText("##Arguments", tmpStr, sizeof(tmpStr))) {
+                rule.arguments.clear();
+                char* p = tmpStr;
+                while (*p) {
+                    while (*p == ' ') ++p;
+                    pEnd = p;
+                    while (*pEnd && *pEnd != ' ') ++pEnd;
+                    if (p != pEnd) { rule.arguments.push_back(std::string(p, pEnd)); }
+                    p = pEnd;
+                }
+            }
+
+            // Buffer size
+            ImGui::SameLine(0., charWidth * 2.f);
+            snprintf(tmpStr, sizeof(tmpStr), "%s", rule.format.c_str());
+            ImGui::Text("Buffer size range:");
+            TEXT_TOOLTIP("Accepted range on the buffer size (bounds included).\nDouble click for entering a number.");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(charWidth * 8.f);
+            if (ImGui::DragInt("##Min buffer size", (int*)&rule.bufferSizeMin, 1.0f, 0, 65535, "%d")) {
+                if (*(int*)&rule.bufferSizeMin < 0) { rule.bufferSizeMin = 0; }
+                if (rule.bufferSizeMin > rule.bufferSizeMax) { rule.bufferSizeMax = rule.bufferSizeMin; }
+            }
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(charWidth * 8.f);
+            if (ImGui::DragInt("##Max buffer size", (int*)&rule.bufferSizeMax, 1.0f, 0, 65535, "%d")) {
+                if (rule.bufferSizeMax < rule.bufferSizeMin) { rule.bufferSizeMin = rule.bufferSizeMax; }
+            }
+
+            // "Remove rule" button
+            ImGui::SameLine(0., charWidth * 8.f);
+            float ruleChangePosX = ImGui::GetCursorPos().x;
+            if (rulesUnderWork.size() > 1) {
+                ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(128, 64, 64, 255));
+                if (ImGui::SmallButton("Remove")) { ruleToRemoveIdx = ruleIdx; }
+                ImGui::PopStyleColor();
+            } else {
+                ImGui::NewLine();  // Cancels the "SameLine()
+            }
+
+            ImGui::NewLine();
+
+            // No Category
+            ImGui::SameLine(categoryPosX);
+            snprintf(tmpStr, sizeof(tmpStr), "%s", rule.noCategory.c_str());
+            ImGui::Text("No category:");
+            TEXT_TOOLTIP(
+                "Filter-OUT category pattern which shall match exactly, wildcard accepted.\nOnly one pattern.\nEx: 'Engine/config' or "
+                "'pipe*/graphic*'");
+            ImGui::SameLine();
+            if (ImGui::InputText("##NoCategory", tmpStr, sizeof(tmpStr))) { rule.noCategory = tmpStr; }
+
+            // No Thread
+            ImGui::SameLine(threadPosX);
+            snprintf(tmpStr, sizeof(tmpStr), "%s", rule.noThread.c_str());
+            ImGui::Text("No thread:");
+            TEXT_TOOLTIP(
+                "Filter-OUT thread pattern which shall match exactly, wildcard accepted.\nOnly one pattern.\nEx: 'main' or '*/worker*'");
+            ImGui::SameLine();
+            if (ImGui::InputText("##NoThread", tmpStr, sizeof(tmpStr))) { rule.noThread = tmpStr; }
+
+            // No Format
+            ImGui::SameLine(formatPosX);
+            snprintf(tmpStr, sizeof(tmpStr), "%s", rule.noFormat.c_str());
+            ImGui::Text("No format:");
+            TEXT_TOOLTIP(
+                "Filter-OUT format pattern which shall match exactly, wildcard accepted.\nOnly one pattern.\nEx: '* independent of*'");
+            ImGui::SameLine();
+            if (ImGui::InputText("##NoFormat", tmpStr, sizeof(tmpStr))) { rule.noFormat = tmpStr; }
+
+            // "Add rule" button
+            if (rulesUnderWork.size() < 8) {
+                ImGui::SameLine(ruleChangePosX);
+                ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(64, 128, 64, 255));
+                if (ImGui::SmallButton("Add")) { ruleToAddIdx = ruleIdx; }
+                ImGui::PopStyleColor();
+            }
+
+            ImGui::PopID();
+            ImGui::PopItemWidth();
+            ImGui::PopStyleVar();
+            ImGui::Spacing();
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+            ImGui::Spacing();
+        }
+
+        // Change in rule quantity (both are exclusive at the same moment)
+        if (ruleToRemoveIdx >= 0) { rulesUnderWork.erase(rulesUnderWork.begin() + ruleToRemoveIdx); }
+        if (ruleToAddIdx >= 0) { rulesUnderWork.insert(rulesUnderWork.begin() + ruleToAddIdx + 1, sslogread::Rule{}); }
+
+        // Footer of the filter configuration
+        ImGui::NewLine();
+        ImGui::NewLine();
+        ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 3.f * ImGui::CalcTextSize("Cancel").x);
+        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(128, 64, 64, 255));
+        if (ImGui::SmallButton("Cancel")) { ImGui::CloseCurrentPopup(); }
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(64, 128, 64, 255));
+        if (ImGui::SmallButton("OK")) {
+            tv.rules       = rulesUnderWork;
+            tv.isDataDirty = true;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::PopStyleColor();
+
+        ImGui::EndPopup();
+    }  // End of filter configuration
 
     // Display of the logs
     // ===================
 
-    char tmpStr[256];
     char lastDateStr[256];
     lastDateStr[0] = 0;  // No previous displayed date
+    ImGui::Separator();
     ImGui::BeginChild("text", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
     prepareTextData(tv);
 

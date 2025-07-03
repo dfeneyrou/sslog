@@ -41,13 +41,13 @@ namespace sslogread
 // Strings are handled as a pattern matching the full field. Wildcards are accepted.
 struct Rule {
     sslog::Level             levelMin = sslog::Level::trace;
-    sslog::Level             levelMax = sslog::Level::off;
+    sslog::Level             levelMax = sslog::Level::critical;
     std::string              category;
     std::string              thread;
     std::string              format;
     std::vector<std::string> arguments;
     uint32_t                 bufferSizeMin = 0;
-    uint32_t                 bufferSizeMax = 0xFFFFFFFF;
+    uint32_t                 bufferSizeMax = 65535;
 
     std::string noCategory;
     std::string noThread;
