@@ -80,6 +80,7 @@ class appMain
         float                        lengthFontSizeRef      = 1.;
         bool                         isDataDirty            = true;
         bool                         isNew                  = true;
+        int64_t                      targetScrollDateNs     = -1;
         int64_t                      rangeSelStartNs        = -1;
         float                        rangeSelStartY         = 0.;
         bool                         doDisplayLevel         = true;
@@ -89,11 +90,13 @@ class appMain
         std::vector<sslogread::Rule> rules;
         std::vector<TextElem>        cachedElems;
     };
-    void                  addTextView(uint32_t id);
-    void                  drawTexts();
-    void                  drawText(TextView& tv);
-    void                  prepareTextData(TextView& tv);
-    std::vector<TextView> _textViews;
+    void                         addTextView(uint32_t id);
+    void                         drawTexts();
+    void                         drawText(TextView& tv);
+    void                         drawTextFilterConfig(TextView& tv);
+    void                         prepareTextData(TextView& tv);
+    std::vector<sslogread::Rule> _rulesUnderWork;
+    std::vector<TextView>        _textViews;
 
     appPlatform*       _platform                = 0;
     uint32_t           _generatorUniqueId       = 1;
