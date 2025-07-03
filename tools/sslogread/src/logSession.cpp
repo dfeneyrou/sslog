@@ -231,6 +231,7 @@ LogSession::init(const std::filesystem::path& logDirPath, std::string& errorMess
 {
     // Read the meta information and strings from the base file
     if (!readBaseInfos(logDirPath, errorMessage)) { return false; }
+    _dataFileList.clear();
 
     // Complete the session with the data files information
     std::error_code                     ec;
