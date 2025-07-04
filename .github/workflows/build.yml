@@ -35,7 +35,7 @@ jobs:
   Windows:
     runs-on: windows-2022
     env:
-      VS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\
+      VS_PATH: C:\Program Files\Microsoft Visual Studio\2022\Enterprise\
     steps:
 
     - name: Checkout code
@@ -88,7 +88,7 @@ jobs:
   Wheels:
     runs-on: windows-2022
     env:
-      VS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\
+      VS_PATH: C:\Program Files\Microsoft Visual Studio\2022\Enterprise\
     steps:
 
     - uses: actions/checkout@v4
