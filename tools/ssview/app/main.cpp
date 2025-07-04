@@ -5,12 +5,10 @@
 #include <cmath>
 #include <ctime>
 
-// External
-#include <graphviz/gvc.h>
-
 #include "asserted.h"
 #include "imgui.h"
 #include "imgui_internal.h"  // For the DockBuilder API (alpha) + title bar tooltip
+#include "implot.h"
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_PNG
 #define STBI_ASSERT(x) asserted(x)
@@ -192,13 +190,14 @@ appMain::drawSettings(void)
     }
 
     if (ImGui::BeginTable("##tableSettings", 2)) {
+        ImPlotStyle& plotStyle = ImPlot::GetStyle();
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, titleWidth);
 
         // UTC or local time
         ImGui::TableNextColumn();
-        ImGui::Text("UTC date (else localtime)");
+        ImGui::Text("Local time date (else UTC)");
         ImGui::TableNextColumn();
-        ImGui::Checkbox("##UTC usage", &_settingsView.useUtc);
+        if (ImGui::Checkbox("##Local time usage", &_settingsView.useLocalTime)) { plotStyle.UseLocalTime = _settingsView.useLocalTime; }
         ImGui::Spacing();
 
         // Date format
@@ -239,6 +238,14 @@ appMain::drawSettings(void)
         ImGui::SetNextItemWidth(sliderWidth);
         ImGui::DragInt("##Color seed", &_settingsView.colorSeed, 1.0f, 0, 1000, "%d",
                        ImGuiSliderFlags_ClampOnInput | ImGuiSliderFlags_WrapAround);
+
+        // Line weight
+        ImGui::TableNextColumn();
+        ImGui::Text("Plot line width");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(sliderWidth);
+        ImGui::SliderFloat("##Plot line width", &plotStyle.LineWeight, 1., 8., "%.1f", ImGuiSliderFlags_ClampOnInput);
+        ImGui::Spacing();
 
         ImGui::EndTable();
     }
@@ -282,6 +289,11 @@ appMain::appMain(appPlatform* platform, const bsString& filename) : _platform(pl
         ImGui::ColorConvertHSVtoRGB(h, s, bsMin(1.0f, 1.2f * v), r, g, b);  // Boost a bit the value for light color
         _colorPalette.push_back((ImU32)ImColor(r, g, b));
     }
+
+    // Configure implot
+    ImPlotStyle& plotStyle   = ImPlot::GetStyle();
+    plotStyle.Use24HourClock = true;
+    plotStyle.UseLocalTime   = _settingsView.useLocalTime;
 
     // Process the filename parameter
     _filename = filename;
@@ -393,6 +405,7 @@ appMain::draw()
 
         case Phase::Active:
             drawTexts();
+            drawPlots();
             break;
 
         case Phase::InitFont:

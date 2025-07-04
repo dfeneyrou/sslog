@@ -8,6 +8,7 @@
 
 // External
 #include "imgui.h"
+#include "implot.h"
 
 // Internal
 #define PL_IMPLEMENTATION 1
@@ -100,8 +101,9 @@ appPlatform::appPlatform(const bsString& filename) : _doExit(0), _isVisible(0), 
     os::getWindowSize(_displayWidth, _displayHeight, dpiWidth, dpiHeight);
     _dpiScale = (float)dpiWidth / 96.f;  // No support of dynamic DPI change
 
-    // Setup ImGui
+    // Setup ImGui & ImPlot
     ImGui::CreateContext();
+    ImPlot::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
@@ -134,6 +136,7 @@ appPlatform::~appPlatform(void)
 {
     delete _main;
     appBackendUninit();
+    ImPlot::DestroyContext();
     ImGui::DestroyContext();
 }
 

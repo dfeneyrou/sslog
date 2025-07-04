@@ -63,11 +63,45 @@ class appMain
     void displayHelpTooltip(int uniqueId, const char* tooltipId, const char* helpStr);
     bool loadSession();
 
+    // Global context
+    appPlatform*       _platform                = 0;
+    uint32_t           _generatorUniqueId       = 1;
+    bsUs_t             _lastMouseMoveDurationUs = 0;
+    std::vector<ImU32> _colorPalette;
+    bool               _showAbout = false;
+
+    // Log session fields
+    bsString              _filename;
+    sslogread::LogSession _logSession;
+    os::Date              _originDate;
+    int64_t               _originUtcNs    = 0;
+    int64_t               _dayOriginUtcNs = 0;
+    int64_t               _tzOffsetNs     = 0;
+
+    // Settings
+    struct SettingsView {
+        uint32_t uniqueId = 0;
+        bool     isOpen   = false;
+        // Settings
+        TimeFormat timeFormat   = TimeFormat::HhMmSsNanosecond;
+        bool       useLocalTime = true;
+        int        fontSize     = FontSizeDefault;
+        int        colorSeed    = 0;
+    };
+    SettingsView _settingsView;
+
+    // File dialogs
+    appFileDialog* _fileDialogLoadLogs = nullptr;
+    bsString       _lastPath;
+    std::string    _fileLoadErrorMsg;
+
+    // Text windows
     struct TextElem {
         uint64_t             timestampUtcNs;
         sslog::Level         level;
         uint32_t             threadIdx;
         uint32_t             categoryIdx;
+        uint32_t             formatIdx;
         std::string          message;
         std::vector<int>     valuePositions;
         std::vector<uint8_t> buffer;
@@ -95,39 +129,25 @@ class appMain
     void                         drawText(TextView& tv);
     void                         drawTextFilterConfig(TextView& tv);
     void                         prepareTextData(TextView& tv);
+    int                          _popupMenuFormatIndex = -1;
+    int                          _popupMenuArgIndex    = -1;
     std::vector<sslogread::Rule> _rulesUnderWork;
     std::vector<TextView>        _textViews;
 
-    appPlatform*       _platform                = 0;
-    uint32_t           _generatorUniqueId       = 1;
-    bsUs_t             _lastMouseMoveDurationUs = 0;
-    std::vector<ImU32> _colorPalette;
-
-    // Log session fields
-    bsString              _filename;
-    sslogread::LogSession _logSession;
-    os::Date              _originDate;
-    int64_t               _originUtcNs    = 0;
-    int64_t               _dayOriginUtcNs = 0;
-    int64_t               _tzOffsetNs     = 0;
-
-    // About
-    bool _showAbout = false;
-
-    // Settings
-    struct SettingsView {
-        uint32_t uniqueId = 0;
-        bool     isOpen   = false;
-        // Settings
-        TimeFormat timeFormat = TimeFormat::HhMmSsNanosecond;
-        bool       useUtc     = false;
-        int        fontSize   = FontSizeDefault;
-        int        colorSeed  = 0;
+    // Plot windows
+    struct PlotView {
+        uint32_t                     uniqueId = 0;
+        char                         name[64];
+        bool                         isDataDirty = true;
+        int                          formatIdx   = -1;
+        int                          argIdx      = -1;
+        std::vector<sslogread::Rule> rules;
+        std::vector<double>          xs;
+        std::vector<double>          ys;
     };
-    SettingsView _settingsView;
-
-    // File dialogs
-    appFileDialog* _fileDialogLoadLogs = nullptr;
-    bsString       _lastPath;
-    std::string    _fileLoadErrorMsg;
+    void                  addPlotView(uint32_t id, const std::vector<sslogread::Rule>& rules, int formatIdx, int argIdx);
+    void                  drawPlots();
+    void                  drawPlot(PlotView& pv);
+    void                  preparePlotData(PlotView& pv);
+    std::vector<PlotView> _plotViews;
 };

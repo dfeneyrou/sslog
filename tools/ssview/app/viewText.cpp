@@ -40,8 +40,8 @@ appMain::prepareTextData(TextView& tv)
                 if (categoryWidth > tv.maxCategoryLength) tv.maxCategoryLength = categoryWidth;
 
                 // Store
-                tv.cachedElems.push_back({log.timestampUtcNs - _originUtcNs, log.level, log.threadIdx, log.categoryIdx, filledFormat,
-                                          std::move(valuePositions), log.buffer});
+                tv.cachedElems.push_back({log.timestampUtcNs - _originUtcNs, log.level, log.threadIdx, log.categoryIdx, log.formatIdx,
+                                          filledFormat, std::move(valuePositions), log.buffer});
 
                 return true;
             },
@@ -79,7 +79,6 @@ appMain::drawTexts()
     if (itemToRemoveIdx >= 0) {
         _textViews.erase(_textViews.begin() + itemToRemoveIdx);
         dirty();
-        // setFullScreenView(-1);
     }
 }
 
@@ -319,7 +318,7 @@ appMain::drawText(TextView& tv)
         ImVec2(ImGui::GetWindowPos().x + offsetMenuX - padMenuX, textBgY),
         ImVec2(ImGui::GetWindowPos().x + offsetMenuX + widthMenu + padMenuX, textBgY + ImGui::GetTextLineHeightWithSpacing()), filterBg);
     ImGui::SameLine(offsetMenuX);
-    if (ImGui::Selectable(" Display ", false, 0, ImVec2(widthMenu, 0))) ImGui::OpenPopup("Display text menu");
+    if (ImGui::Selectable(" Display ", false, 0, ImVec2(widthMenu, 0))) { ImGui::OpenPopup("Display text menu"); }
     if (ImGui::BeginPopup("Display text menu", ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::InputText("##textViewName", tv.name, sizeof(tv.name));
         TEXT_TOOLTIP("Name of the view, displayed in the title bar.");
@@ -344,6 +343,7 @@ appMain::drawText(TextView& tv)
     offsetMenuX += widthMenu + 8.f * padMenuX;
 
     if (ImGui::BeginPopupModal("Log filtering rules", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        // Draw the configuration UI
         drawTextFilterConfig(tv);
         ImGui::EndPopup();
     }
@@ -371,7 +371,7 @@ appMain::drawText(TextView& tv)
     float   y              = winY;
     float   yEnd           = winY + ImGui::GetWindowSize().y + fontHeight;     // Skip the invisible log part after the window end
     int     logStartIdx    = (curScrollPosY + 0.5 * fontHeight) / fontHeight;  // Skip the invisible log part before the window start
-    int64_t dayOriginUtcNs = _dayOriginUtcNs + (_settingsView.useUtc ? -_tzOffsetNs : 0);
+    int64_t dayOriginUtcNs = _dayOriginUtcNs + (_settingsView.useLocalTime ? 0 : -_tzOffsetNs);
 
     int64_t newMouseTimeNs      = -1;
     int64_t mouseTimeBestTimeNs = -1;
@@ -424,11 +424,11 @@ appMain::drawText(TextView& tv)
 
         // Override in color the argument values and names
         asserted((ci.valuePositions.size() & 1) == 0, "The value position array must be even", ci.valuePositions.size());
-        for (uint32_t i = 0; i < ci.valuePositions.size(); i += 2) {
+        for (uint32_t argIdx = 0; argIdx < ci.valuePositions.size() / 2; ++argIdx) {
             // Find positions
             const char* sStart     = ci.message.c_str();
-            const char* valueStart = sStart + ci.valuePositions[i];
-            const char* valueEnd   = sStart + ci.valuePositions[i + 1];
+            const char* valueStart = sStart + ci.valuePositions[2 * argIdx + 0];
+            const char* valueEnd   = sStart + ci.valuePositions[2 * argIdx + 1];
             const char* nameEnd    = bsMax(sStart, valueStart - 1);
             while (nameEnd > sStart && (*nameEnd == '_' || *nameEnd == '=' || *nameEnd == ':' || *nameEnd == '-')) --nameEnd;
             ++nameEnd;
@@ -437,11 +437,19 @@ appMain::drawText(TextView& tv)
             ++nameStart;
 
             // Write in color
-            float redrawOffset = ImGui::CalcTextSize(sStart, valueStart).x;
-            DRAWLIST->AddText(ImVec2(offsetX + redrawOffset, y), uCyan, valueStart, valueEnd);
+            ImVec2 nameValue = ImVec2(offsetX + ImGui::CalcTextSize(sStart, valueStart).x, y);
+            DRAWLIST->AddText(nameValue, uCyan, valueStart, valueEnd);
 
-            redrawOffset = ImGui::CalcTextSize(sStart, nameStart).x;
-            DRAWLIST->AddText(ImVec2(offsetX + redrawOffset, y), uYellow, nameStart, nameEnd);
+            ImVec2 namePos = ImVec2(offsetX + ImGui::CalcTextSize(sStart, nameStart).x, y);
+            DRAWLIST->AddText(namePos, uYellow, nameStart, nameEnd);
+
+            // Handle hovering
+            if (ImGui::IsMouseHoveringRect(namePos, ImVec2(nameValue.x + ImGui::CalcTextSize(valueStart, valueEnd).x, y + fontHeight)) &&
+                ImGui::IsMouseReleased(2)) {
+                ImGui::OpenPopup("Plot popup menu");
+                _popupMenuFormatIndex = ci.formatIdx;
+                _popupMenuArgIndex    = argIdx;
+            }
         }
 
         // Display the buffer, if any
@@ -536,6 +544,16 @@ appMain::drawText(TextView& tv)
         DRAWLIST->AddLine(ImVec2(winX, mouseTimeBestY), ImVec2(winX + curScrollPosX + winWidth, mouseTimeBestY), uYellow);
     }
     if (newMouseTimeNs >= 0) _mouseTimeNs = newMouseTimeNs;
+
+    // Handle the popup plot menu
+    if (ImGui::BeginPopup("Plot popup menu", ImGuiWindowFlags_AlwaysAutoResize)) {
+        if (ImGui::BeginMenu("Plot menu")) {
+            // @LATER: extend the menu by offering adding a curve to an existing plot with compatible unit
+            if (ImGui::MenuItem("Simple plot")) { addPlotView(getId(), tv.rules, _popupMenuFormatIndex, _popupMenuArgIndex); }
+            ImGui::EndMenu();
+        }
+        ImGui::EndPopup();
+    }
 
     ImGui::SetCursorPos(ImVec2(maxOffsetX - winX + curScrollPosX, tv.cachedElems.size() * fontHeight + winHeight));
     ImGui::Dummy(ImVec2(0, 0));  // Need this dummy item after setting the cursor position and extending the window
