@@ -96,6 +96,19 @@ appMain::preparePlotData(PlotView& pv)
     asserted(pv.xs.size() == pv.ys.size(), "By design");
 }
 
+template<typename T>
+int
+BinarySearch(const T* arr, int l, int r, T x)
+{
+    if (r >= l) {
+        int mid = l + (r - l) / 2;
+        if (arr[mid] == x) { return mid; }
+        if (arr[mid] > x) { return BinarySearch(arr, l, mid - 1, x); }
+        return BinarySearch(arr, mid + 1, r, x);
+    }
+    return l;
+}
+
 void
 appMain::drawPlot(PlotView& pv)
 {
@@ -104,6 +117,19 @@ appMain::drawPlot(PlotView& pv)
     if (ImPlot::BeginPlot("My Plot", ImVec2(-1, -1))) {
         ImPlot::SetupAxisScale(ImAxis_X1, ImPlotScale_Time);
         ImPlot::PlotLine("My Line Plot", pv.xs.data(), pv.ys.data(), pv.xs.size());
+
+        // Get the closest point
+        double mouseX = ImPlot::GetPlotMousePos().x;
+        int    idx    = BinarySearch(pv.xs.data(), 0, (int)pv.xs.size() - 1, mouseX);
+        if (idx + 1 < (int)pv.xs.size() && bsAbs(mouseX - pv.xs[idx + 0]) > bsAbs(mouseX - pv.xs[idx + 1])) idx = idx + 1;
+
+        // Check the proximity
+        // @TODO Need plot resolution...
+        if (idx >= 0) {
+            printf("FOUND\n");
+            ImPlot::Annotation(pv.xs[idx], pv.ys[idx], ImVec4(1., 1., 1., 1.), ImVec2(10, 10), true, "Point %d", idx);
+        }
+
         ImPlot::EndPlot();
     }
 }
