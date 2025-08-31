@@ -340,7 +340,7 @@ appMain::drawText(TextView& tv)
         ImGui::OpenPopup("Log filtering rules");
         _rulesUnderWork = tv.rules;  // Copy current rules as a start point of the edition
     }
-    offsetMenuX += widthMenu + 8.f * padMenuX;
+    // offsetMenuX += widthMenu + 8.f * padMenuX;
 
     if (ImGui::BeginPopupModal("Log filtering rules", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         // Draw the configuration UI
@@ -429,11 +429,11 @@ appMain::drawText(TextView& tv)
             const char* sStart     = ci.message.c_str();
             const char* valueStart = sStart + ci.valuePositions[2 * argIdx + 0];
             const char* valueEnd   = sStart + ci.valuePositions[2 * argIdx + 1];
-            const char* nameEnd    = bsMax(sStart, valueStart - 1);
-            while (nameEnd > sStart && (*nameEnd == '_' || *nameEnd == '=' || *nameEnd == ':' || *nameEnd == '-')) --nameEnd;
+            const char* nameEnd    = valueStart - 1;
+            while (nameEnd >= sStart && (*nameEnd == '_' || *nameEnd == '=' || *nameEnd == ':' || *nameEnd == '-')) --nameEnd;
             ++nameEnd;
             const char* nameStart = nameEnd;
-            while (nameStart > sStart && *nameStart != ' ') --nameStart;
+            while (nameStart >= sStart && *nameStart != ' ') --nameStart;
             ++nameStart;
 
             // Write in color
@@ -441,7 +441,7 @@ appMain::drawText(TextView& tv)
             DRAWLIST->AddText(nameValue, uCyan, valueStart, valueEnd);
 
             ImVec2 namePos = ImVec2(offsetX + ImGui::CalcTextSize(sStart, nameStart).x, y);
-            DRAWLIST->AddText(namePos, uYellow, nameStart, nameEnd);
+            if (nameStart < nameEnd) DRAWLIST->AddText(namePos, uYellow, nameStart, nameEnd);
 
             // Handle hovering
             if (ImGui::IsMouseHoveringRect(namePos, ImVec2(nameValue.x + ImGui::CalcTextSize(valueStart, valueEnd).x, y + fontHeight)) &&

@@ -23,17 +23,6 @@ constexpr ImU32 uGrey64     = IM_COL32(64, 64, 64, 255);
 constexpr ImU32 uGrey48     = IM_COL32(48, 48, 48, 255);
 constexpr ImU32 uGreyDark   = IM_COL32(33, 35, 27, 255);
 
-constexpr ImU32 ColorBg     = IM_COL32(64, 64, 64, 255);
-constexpr ImU32 ColorNoteBg = IM_COL32(45, 45, 45, 255);
-constexpr ImU32 ColorNodeFg = IM_COL32(223, 223, 223, 255);
-constexpr ImU32 ColorConnFg = IM_COL32(160, 160, 160, 255);
-
-constexpr ImU32 ColorConv    = IM_COL32(55, 79, 114, 255);
-constexpr ImU32 ColorRelu    = IM_COL32(72, 38, 34, 255);
-constexpr ImU32 ColorMaxPool = IM_COL32(55, 79, 55, 255);
-constexpr ImU32 ColorConcat  = IM_COL32(81, 65, 60, 255);
-constexpr ImU32 ColorDropOut = IM_COL32(67, 69, 98, 255);
-
 enum class TimeFormat : int { Nanosecond, Microsecond, HhMmSsNanosecond, HhMmSsMicrosecond, Qty };
 
 constexpr int FontSizeDefault = 16;

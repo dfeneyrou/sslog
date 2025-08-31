@@ -55,11 +55,11 @@ static struct {
 } appGlCtx;
 
 void
-appBackendInit(void)
+appBackendInit()
 {
     // Set maximum texture size (for ImGui dynamic fonts)
-    ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
-    GLint            maxTextureSize;
+    ImGuiPlatformIO& platform_io    = ImGui::GetPlatformIO();
+    GLint            maxTextureSize = 0;
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
     platform_io.Renderer_TextureMaxWidth = platform_io.Renderer_TextureMaxHeight = (int)maxTextureSize;
 
@@ -115,7 +115,7 @@ appBackendUpdateTexture(ImTextureData* tex)
         // Upload texture to graphics system
         // (Bilinear sampling is required by default. Set 'io.Fonts->Flags |= ImFontAtlasFlags_NoBakedLines' or
         // 'style.AntiAliasedLinesUseTex = false' to allow point/nearest sampling)
-        GLint last_texture;
+        GLint last_texture = 0;
         glGetIntegerv(GL_TEXTURE_BINDING_2D, &last_texture);
         glGenTextures(1, &gl_texture_id);
         glBindTexture(GL_TEXTURE_2D, gl_texture_id);
@@ -135,7 +135,7 @@ appBackendUpdateTexture(ImTextureData* tex)
     } else if (tex->GetStatus() == ImTextureStatus_WantUpdates) {
         // Update selected blocks. We only ever write to textures regions which have never been used before!
         // This backend choose to use tex->Updates[] but you can use tex->UpdateRect to upload a single region.
-        GLint last_texture;
+        GLint last_texture = 0;
         glGetIntegerv(GL_TEXTURE_BINDING_2D, &last_texture);
 
         GLuint gl_tex_id = (GLuint)(intptr_t)tex->TexID;
@@ -159,7 +159,7 @@ appBackendUpdateTexture(ImTextureData* tex)
 }
 
 bool
-appBackendDraw(void)
+appBackendDraw()
 {
     ImDrawData* drawData = ImGui::GetDrawData();
     asserted(drawData);
@@ -265,7 +265,7 @@ appCaptureScreen(int* width, int* height, uint8_t** buffer)
 }
 
 void
-appBackendUninit(void)
+appBackendUninit()
 {
     appGlCtx.guiGlProgram.deinstall();
 

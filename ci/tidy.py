@@ -27,6 +27,7 @@
 import os
 import sys
 import subprocess
+import json
 
 
 def shell(command, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
@@ -53,9 +54,13 @@ def main():
         print("*** Error while calling cmake:\n%s" % ret.stderr)
         sys.exit(1)
 
+    # Filter out the third-party repository and overwrite the initial compile_commands.json
+    filteredJson = [x for x in json.load(open("%s/compile_commands.json" % buildDir))
+                    if "third_party/" not in x["file"] and "vsnprintf.cpp" not in x["file"]]
+    json.dump(filteredJson, open("%s/compile_commands.json" % buildDir, "w"), indent=2)
+
     # Call clang-tidy
-    ret = shell('run-clang-tidy -quiet -header-filter=".*/(apps|lib)/.*" -p=%s %s' %
-                (buildDir, "-fix" if doFix else ""))
+    ret = shell('run-clang-tidy -quiet -header-filter="^(?!.*third_party).*/(lib|python|test|tools)/.*" -p=%s %s' % (buildDir, "-fix" if doFix else ""))
 
     # Success case (good execution and no warning found)
     if ret.returncode == 0 or doFix:

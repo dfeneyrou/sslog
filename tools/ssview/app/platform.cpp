@@ -97,7 +97,7 @@ osBootstrapImpl(int argc, char* argv[])
 appPlatform::appPlatform(const bsString& filename) : _doExit(0), _isVisible(0), _dirtyRedrawCount(APP_REDRAW_PER_NTF)
 {
     // Update ImGui
-    int dpiWidth, dpiHeight;
+    int dpiWidth = 0, dpiHeight = 0;
     os::getWindowSize(_displayWidth, _displayHeight, dpiWidth, dpiHeight);
     _dpiScale = (float)dpiWidth / 96.f;  // No support of dynamic DPI change
 
@@ -110,7 +110,7 @@ appPlatform::appPlatform(const bsString& filename) : _doExit(0), _isVisible(0), 
     io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
     io.DisplaySize                = ImVec2((float)_displayWidth, (float)_displayHeight);
     io.DisplayFramebufferScale    = ImVec2(1.f, 1.f);  // High DPI is handled with increased font size and Imgui spatial constants
-    io.IniFilename                = 0;                 // Disable config file save
+    io.IniFilename                = nullptr;           // Disable config file save
     io.MouseDragThreshold         = 1.;                // 1 pixel threshold to detect that we are dragging
     io.ConfigInputTextCursorBlink = false;
     configureStyle();
@@ -120,7 +120,7 @@ appPlatform::appPlatform(const bsString& filename) : _doExit(0), _isVisible(0), 
     // Install callbacks
     io.SetClipboardTextFn = appSetClipboardText;
     io.GetClipboardTextFn = appGetClipboardText;
-    io.ClipboardUserData  = 0;
+    io.ClipboardUserData  = nullptr;
 
     // Initialize the graphical backend
     appBackendInit();
@@ -132,7 +132,7 @@ appPlatform::appPlatform(const bsString& filename) : _doExit(0), _isVisible(0), 
     _main->notifyStart();
 }
 
-appPlatform::~appPlatform(void)
+appPlatform::~appPlatform()
 {
     delete _main;
     appBackendUninit();
@@ -141,7 +141,7 @@ appPlatform::~appPlatform(void)
 }
 
 void
-appPlatform::run(void)
+appPlatform::run()
 {
     enum { NO_EXIT, EXIT_REQUESTED, EXIT_NOW } exitState = NO_EXIT;
 
@@ -219,7 +219,7 @@ appPlatform::captureScreen(int* width, int* height, uint8_t** buffer)
 }
 
 void
-appPlatform::configureStyle(void)
+appPlatform::configureStyle()
 {
     // Dark side of the style, as a base
     ImGui::StyleColorsDark();

@@ -40,7 +40,7 @@ appFileDialog::open(const bsString& initialPath, int maxSelectionQty)
 }
 
 bool
-appFileDialog::draw(void)
+appFileDialog::draw()
 {
     static const char* months[13] = {"NULL", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
@@ -63,7 +63,7 @@ appFileDialog::draw(void)
         _path = os::getDirname(_path);
     }
 
-    if (!ImGui::BeginPopupModal(_title.toChar(), 0, ImGuiWindowFlags_NoResize)) {
+    if (!ImGui::BeginPopupModal(_title.toChar(), nullptr, ImGuiWindowFlags_NoResize)) {
         ImGui::PopID();
         return false;
     }
@@ -178,7 +178,7 @@ appFileDialog::draw(void)
                       ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_HorizontalScrollbar);
     int selectFlags = ImGuiSelectableFlags_DontClosePopups |
                       ((_mode == SELECT_DIR) ? ImGuiSelectableFlags_Disabled : ImGuiSelectableFlags_AllowDoubleClick);
-    bsString* filterExtension = (_typeFilters[_selectedFilterIdx].back() != '*') ? &_typeFilters[_selectedFilterIdx] : 0;
+    bsString* filterExtension = (_typeFilters[_selectedFilterIdx].back() != '*') ? &_typeFilters[_selectedFilterIdx] : nullptr;
 
     if (ImGui::BeginTable("##table files", 3,
                           ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Sortable |

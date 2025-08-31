@@ -15,6 +15,8 @@
 #include "stb_image.h"  // To load the icon
 
 // Internal
+#include <math.h>
+
 #include "appCommon.h"
 #include "main.h"
 #include "os.h"
@@ -70,9 +72,9 @@ appMain::drawMainMenuBar()
 {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("Load logs", NULL, false, _phase == Phase::WaitForFilename)) { _fileDialogLoadLogs->open(_lastPath); }
+            if (ImGui::MenuItem("Load logs", nullptr, false, _phase == Phase::WaitForFilename)) { _fileDialogLoadLogs->open(_lastPath); }
 
-            if (ImGui::MenuItem("Clear", NULL, false, _phase == Phase::Active)) {
+            if (ImGui::MenuItem("Clear", nullptr, false, _phase == Phase::Active)) {
                 _textViews.clear();
                 _filename = "";
                 _phase    = Phase::WaitForFilename;
@@ -87,7 +89,7 @@ appMain::drawMainMenuBar()
             if (ImGui::MenuItem("New text view")) { addTextView(getId()); }
 
             ImGui::Separator();
-            ImGui::MenuItem("Settings", NULL, &_settingsView.isOpen);
+            ImGui::MenuItem("Settings", nullptr, &_settingsView.isOpen);
 
             ImGui::EndMenu();
         }
@@ -167,7 +169,7 @@ appMain::drawAbout()
 }
 
 void
-appMain::drawSettings(void)
+appMain::drawSettings()
 {
     static int  draggedFontSize = -1;
     const float sliderWidth     = ImGui::CalcTextSize("UTC").x * 5.f;  // Arbitrary size
@@ -264,7 +266,7 @@ appMain::appMain(appPlatform* platform, const bsString& filename) : _platform(pl
 
     // Install the icon
     int      width = 0, height = 0;
-    uint8_t* pixels = stbi_load_from_memory((const stbi_uc*)icon_data, icon_size, &width, &height, 0, 4);
+    uint8_t* pixels = stbi_load_from_memory((const stbi_uc*)icon_data, icon_size, &width, &height, nullptr, 4);
 
     os::setIcon(width, height, pixels);  // The array is owned by the OS layer now
     free(pixels);
@@ -274,7 +276,7 @@ appMain::appMain(appPlatform* platform, const bsString& filename) : _platform(pl
     constexpr float hues[8] = {40., 60., 96., 175., 210., 240., 280., 310.};  // In degrees
     for (int i = 0; i < 32; ++i) {
         int   i8 = i % 8, i16 = i % 16;
-        float r, g, b;
+        float r = NAN, g = NAN, b = NAN;
 
         // Create the color from the hue modulo 8. Some adjustment are required due to perceptual
         float h = hues[i8] / 360.f;
@@ -330,7 +332,7 @@ appMain::loadSession()
     if (!_logSession.init(_filename.toChar(), _fileLoadErrorMsg)) { return false; }
 
     // Get the time zone offset compared to UTC
-    time_t    now = time(NULL);
+    time_t    now = time(nullptr);
     struct tm lcl = *localtime(&now);
     struct tm gmt = *gmtime(&now);
     _tzOffsetNs   = (int64_t)(lcl.tm_hour - gmt.tm_hour) * 3600000000000LL;
@@ -371,7 +373,7 @@ appMain::draw()
                         ImGuiWindowFlags_NoBringToFrontOnFocus;
     ImGui::SetNextWindowSize(io.DisplaySize);
     ImGui::SetNextWindowPos(ImVec2(0, 0));
-    if (!ImGui::Begin("App window", NULL, flags | ImGuiWindowFlags_MenuBar)) {
+    if (!ImGui::Begin("App window", nullptr, flags | ImGuiWindowFlags_MenuBar)) {
         ImGui::End();
         return;
     }

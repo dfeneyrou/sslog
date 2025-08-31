@@ -382,7 +382,7 @@ genGetParam(S64, int64_t);
 genGetParam(U64, uint64_t);
 genGetParam(Double, double);
 
-int
+STBSP__PUBLICDEF int
 STB_SPRINTF_DECORATE(vsprintfcb)(STBSP_SPRINTFCB* callback, void* user, char* buf, char const* fmt, const std::vector<Arg>& va,
                                  const LogSession* session, std::vector<int>* valuePositions)
 {

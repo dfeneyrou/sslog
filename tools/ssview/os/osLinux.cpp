@@ -222,8 +222,9 @@ createWindow(const char* windowTitle, const char* configName, float ratioLeft, f
                m.primary ? " primary" : "");
     }
 
-    int usedMonitorId = 1;  // @TODO Make dynamically switchable
+    int usedMonitorId = 0;  // @TODO Make dynamically switchable
     XMoveWindow(gGlob.xDisplay, gGlob.windowHandle, xMonitors[usedMonitorId].x, xMonitors[usedMonitorId].y);
+    XFree(xMonitors);
 
     XTextProperty textprop;
     textprop.value    = (unsigned char*)windowTitle;
@@ -285,12 +286,6 @@ createWindow(const char* windowTitle, const char* configName, float ratioLeft, f
     // Enable the "close window" message
     gGlob.deleteMessage = XInternAtom(gGlob.xDisplay, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(gGlob.xDisplay, gGlob.windowHandle, &gGlob.deleteMessage, 1);
-
-    // Hotkey addition
-    unsigned int modifiers = ControlMask | Mod1Mask;
-    int          keycode   = XKeysymToKeycode(gGlob.xDisplay, XK_G);
-    XGrabKey(gGlob.xDisplay, keycode, modifiers, Xroot, False, GrabModeAsync, GrabModeAsync);
-    XGrabKey(gGlob.xDisplay, keycode, Mod2Mask | modifiers, Xroot, False, GrabModeAsync, GrabModeAsync);
 
     // Clipboard init
     gClip.aKind       = XInternAtom(gGlob.xDisplay, "CLIPBOARD", False);
@@ -373,7 +368,7 @@ setIcon(int width, int height, const uint8_t* pixels)
 
     // Malloc because this memory will be freed by XDestroyImage
     int      iconSize   = width * height * 4;
-    uint8_t* iconPixels = (uint8_t*)malloc(iconSize);
+    uint8_t* iconPixels = (uint8_t*)malloc(iconSize);  // NOLINT
     memcpy(iconPixels, pixels, iconSize * sizeof(uint8_t));
     for (int i = 0; i < iconSize; i += 4) bsSwap(iconPixels[i], iconPixels[i + 2]);  // Swap red and blue
 
@@ -384,9 +379,10 @@ setIcon(int width, int height, const uint8_t* pixels)
     XImage*  iconImage = XCreateImage(gGlob.xDisplay, defVisual, defDepth, ZPixmap, 0, (char*)&iconPixels[0], width, height, 32, 0);
     if (!iconImage) {
         printf("Unable to create the icon\n");
+        free(iconPixels);
         return;
     }
-    if (iconPixmap) XFreePixmap(gGlob.xDisplay, iconPixmap);
+    if (iconPixmap) XFreePixmap(gGlob.xDisplay, iconPixmap);  // NOLINT
 
     if (iconMaskPixmap) XFreePixmap(gGlob.xDisplay, iconMaskPixmap);
     iconPixmap = XCreatePixmap(gGlob.xDisplay, RootWindow(gGlob.xDisplay, screen), width, height, defDepth);
@@ -658,7 +654,7 @@ bsString
 getCurrentPath()
 {
     char cwd[PATH_MAX];
-    if (getcwd(cwd, sizeof(cwd)) != NULL) return bsString(&cwd[0]);
+    if (getcwd(cwd, sizeof(cwd)) != nullptr) return bsString(&cwd[0]);
     return "";
 }
 
@@ -688,8 +684,9 @@ copyFile(const bsString& srcPath, const bsString& dstPath)
 {
     constexpr int chunkSize = 256 * 1024;
     bool          isSuccess = false;
-    uint8_t*      chunk     = 0;
-    FILE *        fSrc = 0, *fDst = 0;
+    uint8_t*      chunk     = nullptr;
+    FILE *        fSrc = nullptr, *fDst = nullptr;
+    int           readBytes = 0;
 
     // Open the 2 files
     if (!(fSrc = fileOpen(srcPath, "rb"))) goto end;
@@ -698,7 +695,6 @@ copyFile(const bsString& srcPath, const bsString& dstPath)
 
     // Read per chunk
     chunk = new uint8_t[chunkSize];
-    int readBytes;
     while (isSuccess && (readBytes = (int)fread(chunk, 1, chunkSize, fSrc)) > 0) {
         if ((int)fwrite(chunk, 1, readBytes, fDst) != readBytes) { isSuccess = false; }
     }
@@ -1035,30 +1031,13 @@ processInputs(Handler* handler)
 {
     gGlob.osHandler = handler;
     XEvent event;
-    /* // Debug code
-    static const char* eventNames[LASTEvent] = { "None", "None", "KeyPress",
-    "KeyRelease", "ButtonPress", "ButtonRelease", "MotionNotify", "EnterNotify",
-    "LeaveNotify", "FocusIn", "FocusOut", "KeymapNotify", "Expose",
-    "GraphicsExpose", "NoExpose", "VisibilityNotify", "CreateNotify",
-    "DestroyNotify", "UnmapNotify", "MapNotify", "MapRequest", "ReparentNotify",
-    "ConfigureNotify", "ConfigureRequest", "GravityNotify", "ResizeRequest",
-    "CirculateNotify", "CirculateRequest", "PropertyNotify", "SelectionClear",
-    "SelectionRequest", "SelectionNotify", "ColormapNotify", "ClientMessage",
-                                                 "MappingNotify", "GenericEvent"
-    };
-    */
 
-    int         index = 0;
-    KeySym      keysym;
-    Keycode     kc = KC_Unknown;
+    KeySym      keysym = 0;
+    Keycode     kc     = KC_Unknown;
     KeyModState kms;
     while (XPending(gGlob.xDisplay)) {
         // Get next event
         XNextEvent(gGlob.xDisplay, &event);
-        /* // Debug code
-          if(event.type<LASTEvent) printf("Event %-14s-%2d:", eventNames[event.type], event.type);
-          else printf("Unknown event %2d", event.type);
-        */
 
         switch (event.type) {
             case ClientMessage:
@@ -1169,11 +1148,12 @@ processInputs(Handler* handler)
 
                 break;
 
-            case KeyRelease:
-                index = 0;
-                if (event.xkey.state & ShiftMask) { index += 1; }
-                if (event.xkey.state & Mod1Mask) { index += 2; }
-                kc = keysymToKeycode(XLookupKeysym(&event.xkey, index));
+            case KeyRelease: {
+                static XComposeStatus status;
+                char                  keyBuffer[16];
+                [[maybe_unused]] int  length = XLookupString(&event.xkey, keyBuffer, sizeof(keyBuffer), &keysym, &status);
+            }
+                kc = keysymToKeycode(keysym);
                 if (kc != KC_Unknown) {
                     kms = {(bool)(event.xkey.state & ShiftMask), (bool)(event.xkey.state & ControlMask),
                            (bool)(event.xkey.state & Mod1Mask), (bool)(event.xkey.state & Mod4Mask)};
