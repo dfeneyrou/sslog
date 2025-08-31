@@ -364,3 +364,47 @@ def check_log_groups():
 
     stats = compile_and_run_stdout("Log group disabled", LOG_GROUP_BASE_CODE % 0)
     CHECK(stats["storedLogs"] == 1000, "Collected log quantity is %d" % stats["storedLogs"])
+
+
+FILE_CLEANING_CODE = r"""
+#define SSLOG_VIRTUAL_TIME_FOR_TEST_ONLY 1
+#include "sslog.h"
+int main()
+{
+    // Small buffers to flush often
+    sslog::Collector collector;
+    collector.dataBufferBytes = 2000;
+    ssSetCollector(collector);
+
+    // Sink configuration with dynamic part
+    sslog::Sink sink;
+    sink.path         = "sslogDb";
+    sink.consoleLevel = sslog::Level::off;
+    sink.storageLevel = sslog::Level::info;
+    sink.detailsLevel = sslog::Level::trace;
+    %s
+    ssSetSink(sink);
+
+    // Initial log
+    ssInfo("category", "initial log");
+
+    // Only detailed logging during 60s
+    for(int i=0; i<600; ++i) {
+         ssTrace("details", "middle log");
+         sslog::priv::testIncrementVirtualTimeMs(100);
+         sslog::priv::forceFlush();
+    }
+
+    // The final log
+    ssInfo("category", "final log");
+    return 0;
+}
+"""
+
+
+@declare_test("logger")
+def check_empty_file_cleaning():
+    """Check empty file cleaning"""
+
+    dataInfos = compile_and_run_fileinfos("file split by duration", FILE_CLEANING_CODE % "sink.splitFileMaxDurationSec = 2;")
+    CHECK(len(dataInfos) == 2, "Only non-empty files are kept (%d files seen)" % len(dataInfos))

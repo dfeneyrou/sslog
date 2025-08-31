@@ -225,7 +225,7 @@ LogSession::extractMetaInfos(std::string& errorMessage) const
 
     bool queryStatus = query(
         {},
-        [this, &flags, &minTimeNs, &maxTimeNs](int /*ruleIdx*/, const sslogread::LogStruct& log) {
+        [this, &flags, &minTimeNs, &maxTimeNs](int /*ruleIdx*/, const sslogread::LogStruct& log) -> bool {
             if (log.categoryIdx < flags.size()) { flags[log.categoryIdx] |= sslogread::FlagCategory; }
             if (log.threadIdx < flags.size()) { flags[log.threadIdx] |= sslogread::FlagThread; }
             if (log.formatIdx < flags.size()) { flags[log.formatIdx] |= sslogread::FlagFormat; }
@@ -240,6 +240,7 @@ LogSession::extractMetaInfos(std::string& errorMessage) const
                     flags[arg.vStringIdx] |= sslogread::FlagArgValue;
                 }
             }
+            return true;
         },
         errorMessage);
 

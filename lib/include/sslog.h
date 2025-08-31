@@ -1119,12 +1119,13 @@ inline struct GlobalContext {
     // Data collection
     uint8_t                 sessionId[8] = {0};
     FlatHashTable<uint32_t> lkupStringToIndex;
-    FILE*                   fileBaseHandle      = 0;
-    FILE*                   fileDataHandle[2]   = {0, 0};
-    uint32_t                stringUniqueId      = 0;
-    clockTick_t             dataFileSwitchTick  = 0;
-    uint64_t                dataFileCurrentSize = 0;
-    uint32_t                dataFileNumber      = 0;
+    FILE*                   fileBaseHandle         = 0;
+    FILE*                   fileDataHandle[2]      = {0, 0};
+    uint32_t                stringUniqueId         = 0;
+    clockTick_t             dataFileSwitchTick     = 0;
+    uint64_t                dataFileCurrentSize    = 0;
+    uint64_t                dataFileDtlCurrentSize = 0;
+    uint32_t                dataFileNumber         = 0;
     std::mutex              consoleMx;
     Stats                   stats = {};
 
@@ -1209,9 +1210,10 @@ inline struct GlobalContext {
             if (fileDataHandle[bufNbr]) { fclose(fileDataHandle[bufNbr]); }
             fileDataHandle[bufNbr] = 0;
         }
-        dataFileCurrentSize   = 0;
-        dataFileNumber        = 0;
-        utcSystemClockStartNs = getUtcSystemClockNs();
+        dataFileCurrentSize    = 0;
+        dataFileDtlCurrentSize = 0;
+        dataFileNumber         = 0;
+        utcSystemClockStartNs  = getUtcSystemClockNs();
         existingDataFiles.clear();
         detailsRequested.store(0);
         detailedFilesToDelete.clear();
@@ -1985,8 +1987,9 @@ createNewDataFile(clockNs_t utcSystemClockOriginNs, clockTick_t steadyClockOrigi
 
     if (filesWereWritten) {
         gc.dataFileNumber++;
-        gc.dataFileSwitchTick  = getHiResClockTick() + gc.timeConverter.durationNsToTick(1e9 * gc.sink.splitFileMaxDurationSec);
-        gc.dataFileCurrentSize = 0;  // Sum of standard + details
+        gc.dataFileSwitchTick     = getHiResClockTick() + gc.timeConverter.durationNsToTick(1e9 * gc.sink.splitFileMaxDurationSec);
+        gc.dataFileCurrentSize    = 0;
+        gc.dataFileDtlCurrentSize = 0;
         ++gc.stats.createdDataFiles;
     }
 }
@@ -2062,12 +2065,15 @@ periodicLogFlush(bool doForce)
     }
 
     // Write the buffers
-    for (int bufNbr = 0; bufNbr < 2; ++bufNbr) {
-        if (gc.fileDataHandle[bufNbr] != nullptr && nextDataActiveBank.offset[bufNbr] > 0) {
-            fwrite((void*)nextDataActiveBank.buffer[bufNbr].data(), 1, nextDataActiveBank.offset[bufNbr], gc.fileDataHandle[bufNbr]);
-            gc.dataFileCurrentSize += nextDataActiveBank.offset[bufNbr];
-            gc.stats.storedBytes += nextDataActiveBank.offset[bufNbr];
-        }
+    if (gc.fileDataHandle[0] != nullptr && nextDataActiveBank.offset[0] > 0) {
+        fwrite((void*)nextDataActiveBank.buffer[0].data(), 1, nextDataActiveBank.offset[0], gc.fileDataHandle[0]);
+        gc.dataFileCurrentSize += nextDataActiveBank.offset[0];
+        gc.stats.storedBytes += nextDataActiveBank.offset[0];
+    }
+    if (gc.fileDataHandle[1] != nullptr && nextDataActiveBank.offset[1] > 0) {
+        fwrite((void*)nextDataActiveBank.buffer[1].data(), 1, nextDataActiveBank.offset[1], gc.fileDataHandle[1]);
+        gc.dataFileDtlCurrentSize += nextDataActiveBank.offset[1];
+        gc.stats.storedBytes += nextDataActiveBank.offset[1];
     }
 
     // Install the yet inactive bank as a new fresh active one
@@ -2091,24 +2097,26 @@ periodicLogFlush(bool doForce)
 }
 
 inline void
+removeDataFile(uint32_t fileNumber, bool isDetail)
+{
+    std::error_code ec;
+    char            numberedFilename[32];
+    snprintf(numberedFilename, sizeof(numberedFilename), "data%06u%s.sslog", fileNumber, isDetail ? ".dtl" : "");
+    if (SSLOG_FS_NAMESPACE::exists(gc.pathname / numberedFilename) && !SSLOG_FS_NAMESPACE::remove(gc.pathname / numberedFilename, ec)) {
+        fprintf(stderr, "SSLOG error: unable to remove the %sfile '%s': %s\n", isDetail ? "detail " : "",
+                (gc.pathname / numberedFilename).string().c_str(), ec.message().c_str());
+    }
+}
+
+inline void
 cleanOldDataFiles(clockTick_t nowTick)
 {
     // Remove data files in excess, or too old
     clockTick_t dataFileEndTick = nowTick - gc.timeConverter.durationNsToTick(1e9 * gc.sink.fileMaxFileAgeSec);
     while (!gc.existingDataFiles.empty() && ((gc.sink.fileMaxFileAgeSec > 0 && gc.existingDataFiles.front().endTick < dataFileEndTick) ||
                                              (gc.sink.fileMaxQty > 0 && gc.existingDataFiles.size() > gc.sink.fileMaxQty))) {
-        std::error_code ec;
-        char            numberedFilename[32];
-        snprintf(numberedFilename, sizeof(numberedFilename), "data%06u.sslog", gc.existingDataFiles.front().fileNumber);
-        if (SSLOG_FS_NAMESPACE::exists(gc.pathname / numberedFilename) && !SSLOG_FS_NAMESPACE::remove(gc.pathname / numberedFilename, ec)) {
-            fprintf(stderr, "SSLOG error: unable to remove the details file '%s': %s\n", (gc.pathname / numberedFilename).string().c_str(),
-                    ec.message().c_str());
-        }
-        snprintf(numberedFilename, sizeof(numberedFilename), "data%06u.dtl.sslog", gc.existingDataFiles.front().fileNumber);
-        if (SSLOG_FS_NAMESPACE::exists(gc.pathname / numberedFilename) && !SSLOG_FS_NAMESPACE::remove(gc.pathname / numberedFilename, ec)) {
-            fprintf(stderr, "SSLOG error: unable to remove the details file '%s': %s\n", (gc.pathname / numberedFilename).string().c_str(),
-                    ec.message().c_str());
-        }
+        removeDataFile(gc.existingDataFiles.front().fileNumber, false);
+        removeDataFile(gc.existingDataFiles.front().fileNumber, true);
         gc.existingDataFiles.erase(gc.existingDataFiles.begin());
         ++gc.stats.removedDataFiles;
     }
@@ -2183,17 +2191,21 @@ flushTask()
         // Handle the multiple data file strategy
         if (!gc.sink.path.empty() && (gc.fileDataHandle[0] != nullptr || gc.fileDataHandle[1] != nullptr) &&
             ((gc.sink.splitFileMaxDurationSec > 0 && nowTick > gc.dataFileSwitchTick) ||
-             (gc.sink.splitFileMaxBytes > 0 && gc.dataFileCurrentSize >= gc.sink.splitFileMaxBytes))) {
+             (gc.sink.splitFileMaxBytes > 0 && gc.dataFileCurrentSize + gc.dataFileDtlCurrentSize >= gc.sink.splitFileMaxBytes))) {
             // Close the data file. The next one will be created when needed
             if (gc.fileDataHandle[0]) {
-                gc.existingDataFiles.push_back({gc.dataFileNumber - 1, nowTick});
                 fclose(gc.fileDataHandle[0]);
+                if (gc.dataFileCurrentSize == 0) {
+                    removeDataFile(gc.dataFileNumber - 1, false);  // Remove empty file bloat
+                } else {
+                    gc.existingDataFiles.push_back({gc.dataFileNumber - 1, nowTick});
+                }
             }
             // Close the details file
             if (gc.fileDataHandle[1]) {
                 fclose(gc.fileDataHandle[1]);
                 // Store in the potential deletion list if not covered already by a request for details
-                if (gc.currentDetailedFileStartTick >= gc.detailedFileEndTick) {
+                if (gc.currentDetailedFileStartTick >= gc.detailedFileEndTick || gc.dataFileDtlCurrentSize == 0) {
                     gc.detailedFilesToDelete.push_back({gc.dataFileNumber - 1, nowTick});
                 }
             }
@@ -2232,11 +2244,15 @@ flushTask()
     if (gc.fileBaseHandle) { fclose(gc.fileBaseHandle); }
     if (gc.fileDataHandle[0]) {
         fclose(gc.fileDataHandle[0]);
-        gc.existingDataFiles.push_back({gc.dataFileNumber - 1, nowTick});
+        if (gc.dataFileCurrentSize == 0) {
+            removeDataFile(gc.dataFileNumber - 1, false);  // Remove empty file bloat
+        } else {
+            gc.existingDataFiles.push_back({gc.dataFileNumber - 1, nowTick});
+        }
     }
     if (gc.fileDataHandle[1]) {
         fclose(gc.fileDataHandle[1]);
-        if (gc.currentDetailedFileStartTick >= gc.detailedFileEndTick) {
+        if (gc.currentDetailedFileStartTick >= gc.detailedFileEndTick || gc.dataFileDtlCurrentSize == 0) {
             gc.detailedFilesToDelete.push_back({gc.dataFileNumber - 1, nowTick});
         }
     }
@@ -2777,6 +2793,8 @@ getStats()
 // Automatic instantiation
 // =======================================================================================================
 
+#ifndef SSLOG_NO_BOOTSTRAP  // Undocumented flag. Use with caution
+
 struct Bootstrap {
     Bootstrap()
     {
@@ -2792,6 +2810,8 @@ struct Bootstrap {
 };
 
 inline Bootstrap boostrap;
+
+#endif  // ifndef SSLOG_NO_BOOTSTRAP
 
 }  // namespace priv
 

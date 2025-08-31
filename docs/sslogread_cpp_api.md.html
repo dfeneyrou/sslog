@@ -17,7 +17,7 @@ Its methods offers services to manipulate the logs.
 Errors are handled by returning an error flag and an error message (no exceptions).
 
 Strings are a base component of logs and are usually highly redundant (format string, thread name, category, ...). <br>
-In this sense they are particular, as in `sslog` they are stored uniquely once and indexed, which brings many benefits. <br> 
+In this sense they are particular, as in `sslog` they are stored uniquely once and indexed, which brings many benefits. <br>
 Logs refers to them just by their index, and can be quickly grouped. <br>
 The `LogSession` API reflect this characteristic.
 
@@ -87,14 +87,14 @@ Ex: `"/home/user/*"`, `"*/user/omer"`, `"*user*"`
 ##### Declaration
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-bool LogSession:: query(const std::vector<Rule>& rules, const std::function&lt;void(const LogStruct&)&gt;& callback, std::string& errorMessage) const;
+bool LogSession:: query(const std::vector<Rule>& rules, const std::function&lt;bool(const LogStruct&)&gt;& callback, std::string& errorMessage) const;
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-| Parameter name | Type                                                | Direction | Description                               |
-|----------------|-----------------------------------------------------|-----------|-------------------------------------------|
-| `rules`        | `const std::vector<Rule>&`                          | Input     | The array of rules for filtering          |
-| `callback`     | `const std::function&lt;void(const LogStruct&)&gt;` | Input     | The callback which provide each selected log |
-| `errorMessage` | `std::string&`                                      | Output    | The error message, if necessary           |
+| Parameter name | Type                                                | Direction | Description                                                                              |
+|----------------|-----------------------------------------------------|-----------|------------------------------------------------------------------------------------------|
+| `rules`        | `const std::vector<Rule>&`                          | Input     | The array of rules for filtering                                                         |
+| `callback`     | `const std::function&lt;bool(const LogStruct&)&gt;` | Input     | The callback which provide each selected log <br> If false is returned, the query stops. |
+| `errorMessage` | `std::string&`                                      | Output    | The error message, if necessary                                                          |
 
 Returned value:
  - `true` if the query is successful
@@ -111,7 +111,7 @@ struct Rule {
     std::string  format;
     std::vector<std::string> arguments;
     uint32_t     bufferSizeMin = 0;
-    uint32_t     bufferSizeMax = 0xFFFFFFFF;
+    uint32_t     bufferSizeMax = 65535;
 
     std::string  noCategory;
     std::string  noThread;
@@ -119,19 +119,19 @@ struct Rule {
 };
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-| Parameter name      | Type                       | Description                                                            | Default (accept all) |
-|---------------------|----------------------------|------------------------------------------------------------------------|----------------------|
-| `levelMin`          | `sslog::Level`             | The minimum log level                                                  | sslog::Level::trace  |
-| `levelMax`          | `sslog::Level`             | The maximum log level (`off` is above all)                             | sslog::Level::off    |
-| `category`          | `std::string`              | Filtering-in pattern on category                                       | empty                |
-| `thread`            | `std::string`              | Filtering-in pattern on thread name                                    | empty                |
-| `format`            | `std::string`              | Filtering-in pattern on format string                                  | empty                |
-| `bufferSizeMin`     | `uint32_t`                 | Filtering-in if binary buffer length is equal or above                 | 0                    |
-| `bufferSizeMax`     | `uint32_t`                 | Filtering-in if buffer length is equal or below                        | `maximum size (4GB)` |
-| `arguments`         | `std::vector<std::string>` | Filtering-in on arguments names and value <br> (!) No pattern matching | empty                |
-| `noCategory`        | `std::string`              | Filtering-out pattern on category                                      | empty                |
-| `noThread`          | `std::string`              | Filtering-out pattern on thread name                                   | empty                |
-| `noFormat`          | `std::string`              | Filtering-out pattern on format string                                 | empty                |
+| Parameter name  | Type                       | Description                                                            | Default (accept all)   |
+|-----------------|----------------------------|------------------------------------------------------------------------|------------------------|
+| `levelMin`      | `sslog::Level`             | The minimum log level (included)                                       | sslog::Level::trace    |
+| `levelMax`      | `sslog::Level`             | The maximum log level (included)                                       | sslog::Level::critical |
+| `category`      | `std::string`              | Filtering-in pattern on category                                       | empty                  |
+| `thread`        | `std::string`              | Filtering-in pattern on thread name                                    | empty                  |
+| `format`        | `std::string`              | Filtering-in pattern on format string                                  | empty                  |
+| `bufferSizeMin` | `uint32_t`                 | Filtering-in if binary buffer length is equal or above                 | 0                      |
+| `bufferSizeMax` | `uint32_t`                 | Filtering-in if buffer length is equal or below                        | 65535                  |
+| `arguments`     | `std::vector<std::string>` | Filtering-in on arguments names and value <br> (!) No pattern matching | empty                  |
+| `noCategory`    | `std::string`              | Filtering-out pattern on category                                      | empty                  |
+| `noThread`      | `std::string`              | Filtering-out pattern on thread name                                   | empty                  |
+| `noFormat`      | `std::string`              | Filtering-out pattern on format string                                 | empty                  |
 
 !!! tip
     Important points about filtering on arguments:
@@ -204,10 +204,11 @@ if(!session->query({}, [session](const sslogread::LogStruct& log) {
                      log.timestampUtcNs, session->getIndexedString(log.threadIdx), session->getIndexedString(log.categoryIdx),
                      log.buffer.empty()? "No" : "Yes", filledFormat);
 
+                 return true; // Continue to provide logs
              },
              errorMessage)
 {
-    fprinf(stderr, "Error: %s\n", errorMessage.c_str());
+    fprintf(stderr, "Error: %s\n", errorMessage.c_str());
 }
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -220,7 +221,7 @@ rule.bufferSizeMin = 1;
 std::string errorMessage;
 if(!session.query({rule}, [](const sslogread::LogStruct& log) { /* ... */ }, errorMessage)
 {
-    fprinf(stderr, "Error: %s\n", errorMessage.c_str());
+    fprintf(stderr, "Error: %s\n", errorMessage.c_str());
 }
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -290,7 +291,7 @@ rule2.arguments.push_back("wheels>=4");
 std::string errorMessage;
 if(!session.query({rule1, rule2}, [](const sslogread::LogStruct& log) { /* ... */ }, errorMessage)
 {
-    fprinf(stderr, "Error: %s\n", errorMessage.c_str());
+    fprintf(stderr, "Error: %s\n", errorMessage.c_str());
 }
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -508,7 +509,7 @@ for(int level=0; level<7; ++level) {
 
 Some helpers are available for formatting logs.
 
-### Custom vsnprintf
+### vsnprintfLog
 
 This function is an adapted version of the standard C function to `sslog` list of arguments.
 
@@ -516,16 +517,19 @@ This function is an adapted version of the standard C function to `sslog` list o
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
 #include "sslogread/utils.h"
-int vsnprintfLog(char* buf, int count, char const* fmt, const std::vector<Arg>& va, const LogSession* session);
+int vsnprintfLog(char* buf, int count, char const* fmt, const std::vector<Arg>& va, const LogSession* session,
+                 std::vector<int>* valuePositions = nullptr));
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-| Parameter name | Type                      | Description                                                        |
-|----------------|---------------------------|--------------------------------------------------------------------|
-| `buf`          | `char*`                   | Output char buffer containing the resulting string                 |
-| `count`        | `int`                     | Maximum size of the output char buffer                             |
-| `fmt`          | `char const*`             | Format string                                                      |
-| `va`           | `const std::vector<Arg>&` | `sslog` list of arguments                                          |
-| `session`      | `const LogSession*`       | Session object (to provide real strings from string value indexes) |
+| Parameter name   | Type                      | Description                                                                     |
+|------------------|---------------------------|---------------------------------------------------------------------------------|
+| `buf`            | `char*`                   | Output char buffer containing the resulting string                              |
+| `count`          | `int`                     | Maximum size of the output char buffer                                          |
+| `fmt`            | `char const*`             | Format string                                                                   |
+| `va`             | `const std::vector<Arg>&` | `sslog` list of arguments                                                       |
+| `session`        | `const LogSession*`       | Session object (to provide real strings from string value indexes)              |
+| `valuePositions` | `std::vector<int>*`       | If non null, the array contains the start and end position of each filled value |
+
 
 ##### Example
 
@@ -541,10 +545,12 @@ if(!session->query({}, [session](const sslogread::LogStruct& log) {
                  printf("[timestampUtcNs=%lu  thread=%s  category=%s  buffer=%s] %s\n",
                      log.timestampUtcNs, session->getIndexedString(log.threadIdx), session->getIndexedString(log.categoryIdx),
                      log.buffer.empty()? "No" : "Yes", buffer);
+
+                 return true; // Continue to provide logs
              },
              errorMessage)
 {
-    fprinf(stderr, "Error: %s\n", errorMessage.c_str());
+    fprintf(stderr, "Error: %s\n", errorMessage.c_str());
 }
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -588,7 +594,7 @@ For the `format` method, the parameters are:
 | `level`             | `uint32_t`    | Log level                                                    |
 | `threadName`        | `const char*` | Log thread name                                              |
 | `category`          | `const char*` | Log category                                                 |
-| `logContent`        | `const char*` | Log filled format string (see [vsnprintfLog](#customvsnprintf)) |
+| `logContent`        | `const char*` | Log filled format string (see [vsnprintfLog](#vsnprintflog)) |
 | `addEndOfLine`      | `bool`        | If `true`, adds an endline (`\n` or `\r\n`)                  |
 
 ##### Example
@@ -609,10 +615,11 @@ if(!session->query({}, [session, &tf](const sslogread::LogStruct& log) {
                            session->getIndexedString(log.categoryIdx), logContent, false);
 
                  printf("%s\n", logBuffer);
+                 return true; // Continue to provide logs
              },
              errorMessage)
 {
-    fprinf(stderr, "Error: %s\n", errorMessage.c_str());
+    fprintf(stderr, "Error: %s\n", errorMessage.c_str());
 }
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -34,8 +34,10 @@ void
 base64Encode(const std::vector<uint8_t>& bufIn, std::vector<char>& bufOut);
 
 // Custom implementation of vsnprintf with replaced va_list
+// If valuePositions is not null, it will be filled with the positions of the written values
 int
-vsnprintfLog(char* buf, int count, char const* fmt, const std::vector<Arg>& va, const LogSession* session);
+vsnprintfLog(char* buf, int count, char const* fmt, const std::vector<Arg>& va, const LogSession* session,
+             std::vector<int>* valuePositions = nullptr);
 
 // Pattern matching functions
 struct PatternChunk {

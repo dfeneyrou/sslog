@@ -1,0 +1,46 @@
+#pragma once
+
+#include <cstdint>
+
+#include "imgui.h"
+
+// Constants
+// =========
+
+constexpr ImU32 uWhite      = IM_COL32(255, 255, 255, 255);
+constexpr ImU32 uBlack      = IM_COL32(0, 0, 0, 255);
+constexpr ImU32 uYellow     = IM_COL32(255, 192, 64, 255);
+constexpr ImU32 uDarkOrange = IM_COL32(160, 130, 40, 255);
+constexpr ImU32 uCyan       = IM_COL32(32, 192, 192, 255);
+constexpr ImU32 uRed        = IM_COL32(255, 32, 32, 255);
+constexpr ImU32 uBrightRed  = IM_COL32(255, 0, 0, 255);
+constexpr ImU32 uGreen      = IM_COL32(32, 255, 32, 255);
+constexpr ImU32 uLightGrey  = IM_COL32(240, 240, 240, 255);
+constexpr ImU32 uGrey       = IM_COL32(192, 192, 192, 255);
+constexpr ImU32 uGrey128    = IM_COL32(128, 128, 128, 255);
+constexpr ImU32 uGrey96     = IM_COL32(96, 96, 96, 255);
+constexpr ImU32 uGrey64     = IM_COL32(64, 64, 64, 255);
+constexpr ImU32 uGrey48     = IM_COL32(48, 48, 48, 255);
+constexpr ImU32 uGreyDark   = IM_COL32(33, 35, 27, 255);
+
+enum class TimeFormat : int { Nanosecond, Microsecond, HhMmSsNanosecond, HhMmSsMicrosecond, Qty };
+
+constexpr int FontSizeDefault = 16;
+constexpr int FontSizeMin     = 10;
+constexpr int FontSizeMax     = 40;
+
+// Helpers
+// =======
+int
+getFormattedTimeStringCharQty(TimeFormat timeFormat);
+
+const char*
+getFormattedTimeString(int64_t ns, TimeFormat timeFormat, int64_t dayOriginUtcNs);
+
+const char*
+getNiceDuration(int64_t ns, int64_t displayRangeNs = 0);
+
+// Configure the docking location for the next window to be displayed
+// The parameters controls the choice of the location: large or tall window.
+void
+selectBestDockLocation(bool bigWidth, bool bigHeight);

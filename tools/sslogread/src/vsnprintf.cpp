@@ -28,7 +28,7 @@
 //
 //   See end of file for license information.
 
-// [SSLOG] Static implementation, except for the vsnprintf function which is made public
+// [SSLOG] Static implementation, except for the vsnprintfLog function which is made public
 #define STB_SPRINTF_STATIC         1
 #define STB_SPRINTF_IMPLEMENTATION 1
 
@@ -382,9 +382,9 @@ genGetParam(S64, int64_t);
 genGetParam(U64, uint64_t);
 genGetParam(Double, double);
 
-int
+STBSP__PUBLICDEF int
 STB_SPRINTF_DECORATE(vsprintfcb)(STBSP_SPRINTFCB* callback, void* user, char* buf, char const* fmt, const std::vector<Arg>& va,
-                                 const LogSession* session)
+                                 const LogSession* session, std::vector<int>* valuePositions)
 {
     static char hex[]  = "0123456789abcdefxp";
     static char hexu[] = "0123456789ABCDEFXP";
@@ -393,6 +393,7 @@ STB_SPRINTF_DECORATE(vsprintfcb)(STBSP_SPRINTFCB* callback, void* user, char* bu
     int         tlen      = 0;
     uint32_t    paramIdx  = 0;
     bool        isBracket = false;
+    if (valuePositions) { valuePositions->clear(); }
 
     bf = buf;
     f  = fmt;
@@ -1131,6 +1132,7 @@ STB_SPRINTF_DECORATE(vsprintfcb)(STBSP_SPRINTFCB* callback, void* user, char* bu
 
             scopy:
                 // get fw=leading/trailing space, pr=leading zeros
+                if (valuePositions) { valuePositions->push_back((int)(bf - buf)); }  // Value start position
                 if (pr < (stbsp__int32)l) pr = l;
                 n = pr + lead[0] + tail[0] + tz;
                 if (fw < (stbsp__int32)n) fw = n;
@@ -1306,6 +1308,7 @@ STB_SPRINTF_DECORATE(vsprintfcb)(STBSP_SPRINTFCB* callback, void* user, char* bu
                             stbsp__chk_cb_buf(1);
                         }
                     }
+                if (valuePositions) { valuePositions->push_back((int)(bf - buf)); }  // Value end position
                 break;
 
             default:  // unknown, just copy code
@@ -1397,14 +1400,14 @@ stbsp__count_clamp_callback(const char* buf, void* user, int len)
 }
 
 int
-vsnprintfLog(char* buf, int count, char const* fmt, const std::vector<Arg>& va, const LogSession* session)
+vsnprintfLog(char* buf, int count, char const* fmt, const std::vector<Arg>& va, const LogSession* session, std::vector<int>* valuePositions)
 {
     stbsp__context c;
 
     if ((count == 0) && !buf) {
         c.length = 0;
 
-        STB_SPRINTF_DECORATE(vsprintfcb)(stbsp__count_clamp_callback, &c, c.tmp, fmt, va, session);
+        STB_SPRINTF_DECORATE(vsprintfcb)(stbsp__count_clamp_callback, &c, c.tmp, fmt, va, session, valuePositions);
     } else {
         int l;
 
@@ -1412,7 +1415,7 @@ vsnprintfLog(char* buf, int count, char const* fmt, const std::vector<Arg>& va, 
         c.count  = count;
         c.length = 0;
 
-        STB_SPRINTF_DECORATE(vsprintfcb)(stbsp__clamp_callback, &c, stbsp__clamp_callback(0, &c, 0), fmt, va, session);
+        STB_SPRINTF_DECORATE(vsprintfcb)(stbsp__clamp_callback, &c, stbsp__clamp_callback(0, &c, 0), fmt, va, session, valuePositions);
 
         // zero-terminate
         l = (int)(c.buf - buf);

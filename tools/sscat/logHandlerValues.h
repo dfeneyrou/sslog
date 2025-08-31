@@ -23,7 +23,6 @@
 
 #include <string>
 
-#include "sslog.h"
 #include "sslogread/sslogread.h"
 
 class LogHandlerValues

@@ -26,7 +26,6 @@
 #include <zstd.h>  // presumes zstd library is installed
 #endif
 
-#include "sslog.h"
 #include "sslogread/sslogread.h"
 
 namespace sslogread
@@ -254,7 +253,7 @@ LogSession::init(const std::filesystem::path& logDirPath, std::string& errorMess
 }
 
 bool
-LogSession::query(const std::vector<Rule>& rules, const std::function<void(int, const LogStruct&)>& callback,
+LogSession::query(const std::vector<Rule>& rules, const std::function<bool(int, const LogStruct&)>& callback,
                   std::string& errorMessage) const
 {
     // Prepare the filters (OR between them)
@@ -307,7 +306,9 @@ LogSession::query(const std::vector<Rule>& rules, const std::function<void(int, 
                 ++ruleIdx;
             }
 
-            if (doProcess) { callback(ruleIdx, ls->output); }
+            if (doProcess) {
+                if (!callback(ruleIdx, ls->output)) { break; }
+            }
 
             ls->readNext();
         }
