@@ -1,14 +1,16 @@
 #pragma once
 
 // System
+#include <stdint.h>
+
 #include <cstdio>
 #include <cstdlib>
 
 // Internal
-#include "bs.h"
+#include "asserted.h"
 #include "bsColor.h"
 #ifdef __linux__
-#include "glLinux.h"
+#include "glLinux.h"  // IWYU pragma: keep
 #endif
 #ifdef _WIN32
 #include "glWindows.h"

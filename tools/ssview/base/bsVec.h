@@ -45,6 +45,7 @@ class bsVec
         : _size(other._size), _capacity(other._capacity), _array(other._capacity > 0 ? new T[other._capacity] : nullptr)
     {
         group_asserted(BSVEC, _capacity >= _size);
+        // codechecker_suppress [all]
         for (int i = 0; i < other._size; ++i) _array[i] = other._array[i];
     }
     bsVec(const_iterator begin, const_iterator end)

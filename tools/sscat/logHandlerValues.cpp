@@ -22,7 +22,8 @@
 
 #include "logHandlerValues.h"
 
-#include "sslogread/utils.h"
+#include <inttypes.h>
+#include <stdio.h>
 
 LogHandlerValues::LogHandlerValues(const sslogread::LogSession& session, const std::string& dateFormatterString, bool withUtcTime,
                                    const std::vector<std::string>& argNames, const std::string& separator)

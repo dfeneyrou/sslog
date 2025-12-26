@@ -3,10 +3,10 @@
 
 // System
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 
 // External
+#include "asserted.h"
 #include "imgui.h"
 #include "implot.h"
 

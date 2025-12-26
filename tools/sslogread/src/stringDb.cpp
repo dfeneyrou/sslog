@@ -20,7 +20,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cstring>
+#include <stdint.h>
+
+#include <functional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "sslogread/sslogread.h"
 #include "sslogread/utils.h"

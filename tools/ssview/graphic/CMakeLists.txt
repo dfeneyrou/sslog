@@ -27,8 +27,15 @@ file(GLOB GRAPHIC_SRC CONFIGURE_DEPENDS *.cpp *.h)
 add_library(graphic STATIC ${GRAPHIC_SRC})
 add_library(ssview::graphic ALIAS graphic)
 
-target_link_libraries(graphic PRIVATE ssview::asserted ssview::base OpenGL::GL ${X11_LIBRARIES}
-                                      ${X11_Xrender_LIB} ${X11_Xrandr_LIB})
+target_link_libraries(
+  graphic
+  PRIVATE ssview::asserted
+          ssview::base
+          ssview::os
+          OpenGL::GL
+          ${X11_LIBRARIES}
+          ${X11_Xrender_LIB}
+          ${X11_Xrandr_LIB})
 target_include_directories(graphic PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
                                           $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 

@@ -1,0 +1,6 @@
+# Third party libraries are not under our control
+-*/third_party/*
+
+# Ignore system library headers and LLVM false positives
+-*/usr/lib/*
+-*/lib/clang/*

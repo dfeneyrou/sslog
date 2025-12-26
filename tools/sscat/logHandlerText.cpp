@@ -22,6 +22,12 @@
 
 #include "logHandlerText.h"
 
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+#include <vector>
+
 #include "sslogread/utils.h"
 
 LogHandlerText::LogHandlerText(const sslogread::LogSession& session, const std::string& formatterString, bool withUtcTime, bool withColor)

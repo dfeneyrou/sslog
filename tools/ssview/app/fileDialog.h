@@ -2,8 +2,11 @@
 #pragma once
 
 // Internal
+#include <stdint.h>
+
 #include <vector>
 
+#include "asserted.h"
 #include "bsString.h"
 #include "os.h"
 

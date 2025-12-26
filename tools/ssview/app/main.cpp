@@ -1,13 +1,10 @@
 
 // System
 #include <algorithm>
-#include <cinttypes>
-#include <cmath>
 #include <ctime>
 
 #include "asserted.h"
 #include "imgui.h"
-#include "imgui_internal.h"  // For the DockBuilder API (alpha) + title bar tooltip
 #include "implot.h"
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_PNG
@@ -16,8 +13,14 @@
 
 // Internal
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <filesystem>
+#include <functional>
 
 #include "appCommon.h"
+#include "fileDialog.h"
 #include "main.h"
 #include "os.h"
 #include "platform.h"

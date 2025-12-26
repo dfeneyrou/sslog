@@ -22,6 +22,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "sslogread/sslogread.h"
 
@@ -38,8 +39,6 @@ class LogHandlerValues
     const sslogread::LogSession&   _session;
     const std::vector<std::string> _argNames;
     const std::string              _separator;
-    bool                           _isFirstDisplayed = true;
-    char                           _filledFormatbuffer[8192];
     char                           _formattedDate[128];
     sslog::priv::TextFormatter     _tf;
 };

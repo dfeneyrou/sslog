@@ -23,9 +23,18 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
-#include "sslogread.h"
+// Forward declaration
+namespace sslogread
+{
+class LogSession;
+}
+namespace sslogread
+{
+struct Arg;
+}
 
 namespace sslogread
 {

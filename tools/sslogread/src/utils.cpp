@@ -22,6 +22,9 @@
 
 #include "sslogread/utils.h"
 
+#include <assert.h>
+#include <string.h>
+
 namespace sslogread
 {
 
@@ -53,6 +56,8 @@ base64Encode(const std::vector<uint8_t>& bufIn, std::vector<char>& bufOut)
                 bufOut.push_back(dict[((l & 0xF) << 2) | ((c >> 6) & 0x3)]);
                 bufOut.push_back(dict[c & 0x3F]);
                 break;
+            default:
+                break;
         }
         l = c;
     }
@@ -65,6 +70,8 @@ base64Encode(const std::vector<uint8_t>& bufIn, std::vector<char>& bufOut)
         case 2:
             bufOut.push_back(dict[(l & 0xF) << 2]);
             bufOut.push_back('=');
+            break;
+        default:
             break;
     }
     bufOut.push_back(0);

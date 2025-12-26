@@ -1,11 +1,15 @@
 
 // System
+#include <strings.h>
+
 #include <algorithm>
 #include <cstdio>
 
 #include "imgui.h"
 
 // Internal
+#include "bs.h"
+#include "bsVec.h"
 #include "fileDialog.h"
 #include "os.h"
 

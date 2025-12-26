@@ -31,6 +31,8 @@ bsCharUtf8ToUnicode(uint8_t* begin, uint8_t* end, char16_t& codepoint)
             output <<= 6;  // fall through
         case 0:
             output += *begin++;
+        default:
+            break;
     }
     static const uint32_t offsetPerTrailingByte[6] = {0x0, 0x3080, 0xE2080};
     codepoint                                      = (char16_t)(output - offsetPerTrailingByte[trailingBytes]);
@@ -61,6 +63,8 @@ bsCharUnicodeToUtf8(char16_t codepoint, bsString& outUtf8)
             codepoint >>= 6;  // fall through
         case 1:
             outUtf8[curSize + 0] = (uint8_t)(codepoint | firstBytes[outSize]);
+        default:
+            break;
     }
     return true;
 }

@@ -20,7 +20,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
 #include <algorithm>
+#include <filesystem>
+#include <functional>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <utility>
+#include <vector>
 
 #if WITH_ZSTD
 #include <zstd.h>  // presumes zstd library is installed

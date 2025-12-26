@@ -10,6 +10,9 @@ option(SSLOG_BUILD_PYTHON_READER "Build the python reader interface" OFF)
 cmake_policy(SET CMP0009 NEW) # For GLOB_RECURSE
 cmake_policy(SET CMP0072 NEW) # For OpenGL (Linux)
 
+# Export a compilation database
+set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
+
 # Use ccache if available
 find_program(CCACHE_PROGRAM ccache)
 if(CCACHE_PROGRAM)

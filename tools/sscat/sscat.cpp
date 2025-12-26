@@ -22,13 +22,13 @@
 
 // This file is a utility tool to dump the logs
 
-#include <time.h>
+#include <stdlib.h>
 
-#include <cassert>
 #include <cinttypes>  // Platform independent printf for integers (PRI64...)
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <functional>
 #include <string>
 #include <vector>
 

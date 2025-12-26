@@ -1,10 +1,19 @@
+#include <stdint.h>
+#include <stdio.h>
 
+#include <atomic>
+#include <functional>
+#include <string>
+#include <vector>
+
+#include "asserted.h"
 #include "imgui.h"
 #include "implot.h"
 
 // Internal
-#include "appCommon.h"
+#include "bs.h"
 #include "main.h"
+#include "sslogread/sslogread.h"
 
 void
 appMain::addPlotView(uint32_t id, const std::vector<sslogread::Rule>& rules, int formatIdx, int argIdx)
@@ -57,7 +66,7 @@ appMain::preparePlotData(PlotView& pv)
     std::vector<int> valuePositions;
     if (!_logSession.query(
             pv.rules,
-            [this, &pv](int /*ruleIdx*/, const sslogread::LogStruct& log) {
+            [&pv](int /*ruleIdx*/, const sslogread::LogStruct& log) {
                 // Filter on the format string and arg qty (sanity)
                 if ((int)log.formatIdx != pv.formatIdx || (int)log.args.size() < pv.argIdx) { return true; }
 

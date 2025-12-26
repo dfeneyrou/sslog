@@ -1,9 +1,22 @@
 
+#include <stdint.h>
+#include <stdio.h>
+
+#include <atomic>
+#include <functional>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "imgui.h"
 
 // Internal
 #include "appCommon.h"
+#include "asserted.h"
+#include "bs.h"
 #include "main.h"
+#include "sslogread/sslogread.h"
+#include "sslogread/utils.h"
 
 void
 appMain::addTextView(uint32_t id)

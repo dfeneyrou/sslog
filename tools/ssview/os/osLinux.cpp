@@ -1,15 +1,22 @@
 #ifdef __linux__
 
+#include <GL/gl.h>
+#include <GL/glx.h>
+#include <X11/X.h>
 #include <X11/Xatom.h>
+#include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/extensions/Xrandr.h>  // apt install libxrandr-dev
 #include <X11/extensions/Xrender.h>
-// apt install libxrandr-dev
-#include <X11/extensions/Xrandr.h>
+#include <X11/keysym.h>
 
 // System
 #include <dirent.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdint.h>
 #include <sys/stat.h>
-#include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <cstdio>
@@ -18,10 +25,11 @@
 #include <vector>
 
 // Internal
+#include "asserted.h"
 #include "bs.h"
 #include "bsString.h"
 #include "bsTime.h"
-#include "glLinux.h"
+#include "bsVec.h"
 #include "keycode.h"
 #include "os.h"
 
@@ -183,9 +191,9 @@ createWindow(const char* windowTitle, const char* configName, float ratioLeft, f
     int attr_mask = CWBackPixmap | CWColormap | CWBorderPixel | CWEventMask | CWOverrideRedirect;
 
     // Compute DPI
-#define COMPUTE_DPI(pix, mm)                                                                                                              \
-    (int)(9.6 * ((int)(((double)(pix)) / ((double)(mm)) * (254. / 96.) + 0.5))) /* Quantize the DPI each 5%, to clean approximated values \
-                                                                                 */
+#define COMPUTE_DPI(pix, mm) \
+    (int)(9.6 * (lround(((double)(pix)) / ((double)(mm)) * (254. / 96.)))) /* Quantize each 5%, to clean approximated values */
+
     int defaultScreenId = DefaultScreen(gGlob.xDisplay);
     int dWidth          = DisplayWidth(gGlob.xDisplay, defaultScreenId);
     int dHeight         = DisplayHeight(gGlob.xDisplay, defaultScreenId);
@@ -226,25 +234,34 @@ createWindow(const char* windowTitle, const char* configName, float ratioLeft, f
     XMoveWindow(gGlob.xDisplay, gGlob.windowHandle, xMonitors[usedMonitorId].x, xMonitors[usedMonitorId].y);
     XFree(xMonitors);
 
+    XClassHint classHint;
+    classHint.res_name  = (char*)"ssview";
+    classHint.res_class = (char*)"sslog_ssview";
+    XSetClassHint(gGlob.xDisplay, gGlob.windowHandle, &classHint);
+
     XTextProperty textprop;
     textprop.value    = (unsigned char*)windowTitle;
     textprop.encoding = XA_STRING;
     textprop.format   = 8;
     textprop.nitems   = strlen(windowTitle);
 
-    XSizeHints hints;
-    hints.x      = x;
-    hints.y      = y;
-    hints.width  = gGlob.wWidth;
-    hints.height = gGlob.wHeight;
-    hints.flags  = USPosition | USSize;
+    XSizeHints sizeHints;
+    sizeHints.x          = x;
+    sizeHints.y          = y;
+    sizeHints.width      = gGlob.wWidth;
+    sizeHints.height     = gGlob.wHeight;
+    sizeHints.min_width  = 300;
+    sizeHints.min_height = 300;
+    sizeHints.max_width  = 10000;
+    sizeHints.max_height = 10000;
+    sizeHints.flags      = PPosition | PSize | PMinSize | PMaxSize;
 
-    XWMHints* startup_state      = XAllocWMHints();
-    startup_state->initial_state = NormalState;
-    startup_state->flags         = StateHint;
+    XWMHints* startState      = XAllocWMHints();
+    startState->initial_state = NormalState;
+    startState->flags         = StateHint;
 
-    XSetWMProperties(gGlob.xDisplay, gGlob.windowHandle, &textprop, &textprop, nullptr, 0, &hints, startup_state, nullptr);
-    XFree(startup_state);
+    XSetWMProperties(gGlob.xDisplay, gGlob.windowHandle, &textprop, &textprop, nullptr, 0, &sizeHints, startState, nullptr);
+    XFree(startState);
     XFree(visual);
 
     XMapWindow(gGlob.xDisplay, gGlob.windowHandle);
@@ -382,6 +399,7 @@ setIcon(int width, int height, const uint8_t* pixels)
         free(iconPixels);
         return;
     }
+    // codechecker_suppress [all]
     if (iconPixmap) XFreePixmap(gGlob.xDisplay, iconPixmap);  // NOLINT
 
     if (iconMaskPixmap) XFreePixmap(gGlob.xDisplay, iconMaskPixmap);
@@ -1021,6 +1039,8 @@ keysymToKeycode(KeySym symbol)
             return KC_Num8;
         case XK_9:
             return KC_Num9;
+        default:
+            break;
     }
 
     return KC_Unknown;
@@ -1236,6 +1256,8 @@ processInputs(Handler* handler)
                     gGlob.osHandler->notifyExposed();
                 }
             } break;
+            default:
+                break;
         }
     }
 }

@@ -1,10 +1,13 @@
 #pragma once
 
 // System
+#include <stdint.h>
+
 #include <atomic>
 
 // Internal
 #include "bs.h"
+#include "bsString.h"
 #include "bsTime.h"
 #include "keycode.h"
 #include "os.h"

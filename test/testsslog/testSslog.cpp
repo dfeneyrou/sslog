@@ -29,9 +29,15 @@
 #include "windows.h"
 #endif  // _WIN32
 
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include <cstring>
 #include <mutex>
+#include <string>
 #include <thread>
+#include <vector>
 
 #include "sslog.h"
 #include "testPart.h"

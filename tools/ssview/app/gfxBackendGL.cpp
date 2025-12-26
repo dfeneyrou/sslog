@@ -1,4 +1,3 @@
-
 // This file implements the Open GL backend
 
 #if defined(__linux__) || defined(_WIN32)
@@ -7,11 +6,21 @@
 #include "imgui.h"
 
 // Internal
+#include <stdint.h>
+#include <string.h>
+
 #include <vector>
 
-#include "bs.h"
+#include "asserted.h"
 #include "gfxBackend.h"
 #include "glHelper.h"
+#include "imconfig.h"
+#ifdef __linux__
+#include "glLinux.h"  // IWYU pragma: keep
+#endif
+#ifdef _WIN32
+#include "glWindows.h"
+#endif
 
 // Shaders
 static const GLchar* guiVertexShaderSrc =

@@ -34,7 +34,11 @@
 
 #ifndef STB_SPRINTF_H_INCLUDE
 #define STB_SPRINTF_H_INCLUDE
-#include <cstdio>
+#include <stdint.h>
+
+#include <vector>
+
+#include "sslogread/sslogread.h"
 
 /*
 Single file sprintf replacement.
@@ -1183,6 +1187,7 @@ STB_SPRINTF_DECORATE(vsprintfcb)(STBSP_SPRINTFCB* callback, void* user, char* bu
                         stbsp__cb_buf_clamp(i, lead[0]);
                         lead[0] -= (char)i;
                         while (i) {
+                            // codechecker_suppress [all]
                             *bf++ = *sn++;
                             --i;
                         }
@@ -1246,6 +1251,7 @@ STB_SPRINTF_DECORATE(vsprintfcb)(STBSP_SPRINTFCB* callback, void* user, char* bu
                         i -= 4;
                     })
                     while (i) {
+                        // codechecker_suppress [all]
                         *bf++ = *s++;
                         --i;
                     }
@@ -1378,6 +1384,7 @@ stbsp__clamp_callback(const char* buf, void* user, int len)
             s  = buf;
             se = buf + len;
             do {
+                // codechecker_suppress [all]
                 *d++ = *s++;
             } while (s < se);
         }

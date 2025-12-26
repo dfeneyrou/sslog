@@ -2,6 +2,10 @@
 
 #include "appCommon.h"
 
+#include <inttypes.h>
+#include <stdio.h>
+
+#include <cmath>
 #include <vector>
 
 #include "asserted.h"
@@ -101,6 +105,8 @@ selectBestDockLocation(bool bigWidth, bool bigHeight)
                     case 3:
                         criterion = 1.f / (s[0] * s[1]);
                         break;  // Smallest area
+                    default:
+                        break;
                 }
                 criterion *=
                     1.f - ((node->TabBar) ? 0.001f * node->TabBar->Tabs.size() : 0.f);  // Slightly favorize node with least views inside

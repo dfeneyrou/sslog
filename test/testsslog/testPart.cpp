@@ -24,9 +24,13 @@
 
 #include "testPart.h"
 
-#include <math.h>
+#include <stdio.h>
 
+#include <filesystem>
+#include <string>
+#include <system_error>
 #include <thread>
+#include <vector>
 
 #include "sslog.h"
 

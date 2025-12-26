@@ -20,12 +20,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include <climits>
 #include <string>
 #include <vector>
 
 #include "sslogread/sslogread.h"
-#include "sslogread/utils.h"
 
 namespace sslogread
 {
@@ -105,35 +110,35 @@ LogSession::LogStream::readNext()
         switch (pflag) {
             case SSLOG_DATA_S8:
                 if (valueOffset + 1 <= _bufferSize) {
-                    output.args.push_back({ArgType::S32, 0});
+                    output.args.push_back({ArgType::S32, {0}});
                     output.args.back().vS32 = _buffer[valueOffset + 0];
                 }
                 valueOffset += 1;
                 break;
             case SSLOG_DATA_U8:
                 if (valueOffset + 1 <= _bufferSize) {
-                    output.args.push_back({ArgType::U32, 0});
+                    output.args.push_back({ArgType::U32, {0}});
                     output.args.back().vU32 = _buffer[valueOffset + 0];
                 }
                 valueOffset += 1;
                 break;
             case SSLOG_DATA_S16:
                 if (valueOffset + 2 <= _bufferSize) {
-                    output.args.push_back({ArgType::S32, 0});
+                    output.args.push_back({ArgType::S32, {0}});
                     output.args.back().vS32 = (_buffer[valueOffset + 0] << 0) | (_buffer[valueOffset + 1] << 8);
                 }
                 valueOffset += 2;
                 break;
             case SSLOG_DATA_U16:
                 if (valueOffset + 2 <= _bufferSize) {
-                    output.args.push_back({ArgType::U32, 0});
+                    output.args.push_back({ArgType::U32, {0}});
                     output.args.back().vU32 = (_buffer[valueOffset + 0] << 0) | (_buffer[valueOffset + 1] << 8);
                 }
                 valueOffset += 2;
                 break;
             case SSLOG_DATA_S32:
                 if (valueOffset + 4 <= _bufferSize) {
-                    output.args.push_back({ArgType::S32, 0});
+                    output.args.push_back({ArgType::S32, {0}});
                     output.args.back().vS32 = (_buffer[valueOffset + 0] << 0) | (_buffer[valueOffset + 1] << 8) |
                                               (_buffer[valueOffset + 2] << 16) | (_buffer[valueOffset + 3] << 24);
                 }
@@ -141,7 +146,7 @@ LogSession::LogStream::readNext()
                 break;
             case SSLOG_DATA_U32:
                 if (valueOffset + 4 <= _bufferSize) {
-                    output.args.push_back({ArgType::U32, 0});
+                    output.args.push_back({ArgType::U32, {0}});
                     output.args.back().vU32 = (_buffer[valueOffset + 0] << 0) | (_buffer[valueOffset + 1] << 8) |
                                               (_buffer[valueOffset + 2] << 16) | (_buffer[valueOffset + 3] << 24);
                 }
@@ -149,7 +154,7 @@ LogSession::LogStream::readNext()
                 break;
             case SSLOG_DATA_S64:
                 if (valueOffset + 8 <= _bufferSize) {
-                    output.args.push_back({ArgType::S64, 0});
+                    output.args.push_back({ArgType::S64, {0}});
                     output.args.back().vS64 = ((uint64_t)_buffer[valueOffset + 0] << 0) | ((uint64_t)_buffer[valueOffset + 1] << 8) |
                                               ((uint64_t)_buffer[valueOffset + 2] << 16) | ((uint64_t)_buffer[valueOffset + 3] << 24) |
                                               ((uint64_t)_buffer[valueOffset + 4] << 32) | ((uint64_t)_buffer[valueOffset + 5] << 40) |
@@ -159,7 +164,7 @@ LogSession::LogStream::readNext()
                 break;
             case SSLOG_DATA_U64:
                 if (valueOffset + 8 <= _bufferSize) {
-                    output.args.push_back({ArgType::U64, 0});
+                    output.args.push_back({ArgType::U64, {0}});
                     output.args.back().vU64 = ((uint64_t)_buffer[valueOffset + 0] << 0) | ((uint64_t)_buffer[valueOffset + 1] << 8) |
                                               ((uint64_t)_buffer[valueOffset + 2] << 16) | ((uint64_t)_buffer[valueOffset + 3] << 24) |
                                               ((uint64_t)_buffer[valueOffset + 4] << 32) | ((uint64_t)_buffer[valueOffset + 5] << 40) |
@@ -169,7 +174,7 @@ LogSession::LogStream::readNext()
                 break;
             case SSLOG_DATA_FLOAT:
                 if (valueOffset + 4 <= _bufferSize) {
-                    output.args.push_back({ArgType::Float, 0});
+                    output.args.push_back({ArgType::Float, {0}});
                     uint32_t tmp1 = (_buffer[valueOffset + 0] << 0) | (_buffer[valueOffset + 1] << 8) | (_buffer[valueOffset + 2] << 16) |
                                     (_buffer[valueOffset + 3] << 24);
                     char* tmp2                = (char*)&tmp1;
@@ -179,7 +184,7 @@ LogSession::LogStream::readNext()
                 break;
             case SSLOG_DATA_DOUBLE:
                 if (valueOffset + 8 <= _bufferSize) {
-                    output.args.push_back({ArgType::Double, 0});
+                    output.args.push_back({ArgType::Double, {0}});
                     uint64_t tmp1 = ((uint64_t)_buffer[valueOffset + 0] << 0) | ((uint64_t)_buffer[valueOffset + 1] << 8) |
                                     ((uint64_t)_buffer[valueOffset + 2] << 16) | ((uint64_t)_buffer[valueOffset + 3] << 24) |
                                     ((uint64_t)_buffer[valueOffset + 4] << 32) | ((uint64_t)_buffer[valueOffset + 5] << 40) |
@@ -196,7 +201,7 @@ LogSession::LogStream::readNext()
                     if (stringIdx >= _session->getIndexedStringQty()) {
                         stringIdx = UINT_MAX;  // Will be displayed as "corrupted string"
                     }
-                    output.args.push_back({ArgType::StringIdx, 0});
+                    output.args.push_back({ArgType::StringIdx, {0}});
                     output.args.back().vStringIdx = stringIdx;
                 }
                 valueOffset += 4;

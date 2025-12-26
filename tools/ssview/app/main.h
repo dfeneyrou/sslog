@@ -1,25 +1,26 @@
 #pragma once
 
 // System
+#include <stdint.h>
+
 #include <atomic>
-#include <functional>
-#include <mutex>
+#include <string>
+#include <thread>
 #include <vector>
 
 // External
 #include "imgui.h"
 #include "sslogread/sslogread.h"
-#include "sslogread/utils.h"
 
 // Internal
 #include "appCommon.h"
 #include "bs.h"
 #include "bsString.h"
-#include "bsTime.h"
-#include "fileDialog.h"
+#include "os.h"
 
 // Forward declarations
 class appPlatform;
+class appFileDialog;
 
 // Helpers
 #define DRAWLIST ImGui::GetWindowDrawList()

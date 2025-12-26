@@ -1,6 +1,7 @@
 #pragma once
 
-#include "bs.h"
+#include <stdint.h>
+
 #include "bsVec.h"
 
 class bsStringUtf16;
