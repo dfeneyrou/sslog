@@ -78,6 +78,12 @@ LogSession::loadUncompressedFile(const std::filesystem::path& filePath, std::str
         return false;
     }
 
+    if (fileSize == 0) {
+        errorMessage = std::string("the file is empty");
+        fclose(fileHandle);
+        return false;
+    }
+
     // Read the full file
     buffer.resize(fileSize);
     if (fread((void*)buffer.data(), 1, fileSize, fileHandle) != fileSize) {
